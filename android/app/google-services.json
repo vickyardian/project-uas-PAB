@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "2427366198",
+    "project_id": "app-with-firebase-da00e",
+    "storage_bucket": "app-with-firebase-da00e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:2427366198:android:1ef9bb08f9834ff0a7a197",
+        "android_client_info": {
+          "package_name": "com.example.uas_with_firbase"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA4a53_HUhvAhXg9t8wb4ooj-Bj_C6u09Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
