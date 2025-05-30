@@ -31,7 +31,7 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
         FadeTransition(
           opacity: _animationController,
           child: Container(),
-        ).opacity!;
+        ).opacity;
     _animationController.forward();
   }
 
@@ -486,8 +486,9 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                                         Expanded(
                                           child: GestureDetector(
                                             onTap: () {
-                                              if (!_isLoginMode)
+                                              if (!_isLoginMode) {
                                                 _toggleAuthMode();
+                                              }
                                             },
                                             child: Container(
                                               padding:
@@ -522,8 +523,9 @@ class _AuthScreenState extends State<AuthScreen> with TickerProviderStateMixin {
                                         Expanded(
                                           child: GestureDetector(
                                             onTap: () {
-                                              if (_isLoginMode)
+                                              if (_isLoginMode) {
                                                 _toggleAuthMode();
+                                              }
                                             },
                                             child: Container(
                                               padding:
