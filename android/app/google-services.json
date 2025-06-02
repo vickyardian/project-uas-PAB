@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "372683523114",
+    "project_id": "roti-nyaman",
+    "storage_bucket": "roti-nyaman.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:372683523114:android:d29cea64f2b325b8c2ef53",
+        "android_client_info": {
+          "package_name": "com.example.roti_nyaman"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "372683523114-2rq46r1q7ihehc3vcs769eo2sr8gq0ol.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.roti_nyaman",
+            "certificate_hash": "d887aca8ad8ffe13b2f711aed8483aa0b090c1ab"
+          }
+        },
+        {
+          "client_id": "372683523114-mtf6m9ljnh65p8kjnt3lh512gmrmf3g3.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD1BNcnSdFbwqj5kEN3KI0Pf1m1IYXIBQo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "372683523114-mtf6m9ljnh65p8kjnt3lh512gmrmf3g3.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "372683523114-vkdk14v3sauf8q8ek431a84e3224v6qg.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.rotiNyaman"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
