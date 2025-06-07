@@ -1,5 +1,5 @@
 class Product {
-  final String id; // Ubah dari int ke String untuk konsistensi dengan data
+  final String id;
   final String name;
   final String price;
   final String image;
