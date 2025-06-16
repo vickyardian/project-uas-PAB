@@ -1,11 +1,12 @@
-// home_screen.dart
+//screens/home_screen.dart
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-
-import 'profile_screen.dart';
-import 'cart_screen.dart';
-import 'login_screen.dart';
-import '../widgets/home_content.dart';
+import 'package:roti_nyaman/services/firestore_service.dart';
+import 'package:roti_nyaman/widgets/home_content.dart';
+import '../screens/profile_screen.dart';
+import '../screens/cart_screen.dart';
+import '../auth/login_screen.dart';
 import '../widgets/guest_cart_page.dart';
 import '../widgets/guest_profile_page.dart';
 import '../widgets/guest_dialogs.dart';
@@ -22,13 +23,24 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
-  final List<CartItem> _cartItems = [];
-  final Map<String, Product> _productCache = {}; // Key by product.id
+  final List<CartItem> _guestCartItems = []; // Renamed untuk clarity
+  final Map<String, Product> _productCache = {};
+  final FirestoreService _firestoreService = FirestoreService();
+  User? _currentUser;
 
   @override
   void initState() {
     super.initState();
-    debugPrint('DEBUG: HomeScreen initialized');
+    _currentUser = FirebaseAuth.instance.currentUser;
+    // Load guest cart if returning from login
+    _initializeCart();
+  }
+
+  void _initializeCart() {
+    // Initialize cart based on mode
+    if (!widget.isGuest && _currentUser != null) {
+      _syncGuestCartOnLogin();
+    }
   }
 
   List<Widget> get _pages {
@@ -37,26 +49,25 @@ class _HomeScreenState extends State<HomeScreen> {
         isGuest: widget.isGuest,
         cart: _getCartMap(),
         onAddToCart: _addToCart,
-        onCartPressed:
-            widget.isGuest
-                ? () => GuestDialogs.showCartDialog(
+        onCartPressed: widget.isGuest
+            ? () => GuestDialogs.showCartDialog(
                   context,
                   _getCartMap(),
                   _redirectToLogin,
                 )
-                : () => setState(() => _selectedIndex = 1),
+            : () => setState(() => _selectedIndex = 1),
       ),
       widget.isGuest
           ? GuestCartPage(onLoginPressed: _redirectToLogin)
           : CartScreen(
-            key: ValueKey(_cartItems.length), // Paksa rebuild saat cart berubah
-            cart: _getCartMap(),
-            onCartUpdated: _updateCartFromCartScreen,
-            productImages: _getProductImagesMap(),
-            productNames: _getProductNamesMap(),
-            productPrices: _getProductPricesMap(),
-            productStock: _getProductStockMap(),
-          ),
+              key: ValueKey(_getCartMap().hashCode),
+              cart: _getCartMap(),
+              onCartUpdated: _updateCartFromCartScreen,
+              productImages: _getProductImagesMap(),
+              productNames: _getProductNamesMap(),
+              productPrices: _getProductPricesMap(),
+              productStock: _getProductStockMap(),
+            ),
       widget.isGuest
           ? GuestProfilePage(onLoginPressed: _redirectToLogin)
           : const ProfileScreen(),
@@ -71,144 +82,183 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => _selectedIndex = index);
   }
 
-  void _addToCart(Product product) {
+  Future<void> _addToCart(Product product) async {
     _productCache[product.id] = product;
-    int existingIndex = _cartItems.indexWhere(
-      (item) => item.product.id == product.id,
-    );
 
+    if (widget.isGuest) {
+      // Mode tamu: update state lokal
+      _addToGuestCart(product);
+    } else if (_currentUser != null) {
+      // Mode login: update Firestore
+      try {
+        await _firestoreService.updateCartItem(_currentUser!.uid, product, 1);
+        _showSuccessSnackBar(product, false);
+      } catch (e) {
+        _showErrorSnackBar('Gagal menambahkan ke keranjang: $e');
+        return;
+      }
+    }
+
+    if (widget.isGuest) {
+      _showSuccessSnackBar(product, true);
+    }
+  }
+
+  void _addToGuestCart(Product product) {
     setState(() {
+      int existingIndex = _guestCartItems.indexWhere((item) => item.product.id == product.id);
       if (existingIndex != -1) {
-        _cartItems[existingIndex].quantity++;
+        _guestCartItems[existingIndex] = CartItem(
+          product: _guestCartItems[existingIndex].product,
+          quantity: _guestCartItems[existingIndex].quantity + 1,
+        );
       } else {
-        _cartItems.add(CartItem(product: product, quantity: 1));
+        _guestCartItems.add(CartItem(product: product, quantity: 1));
       }
     });
+  }
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      setState(() {});
-    });
-
+  void _showSuccessSnackBar(Product product, bool isGuest) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('${product.name} ditambahkan ke keranjang'),
-        backgroundColor: widget.isGuest ? Colors.orange : Colors.green,
+        backgroundColor: isGuest ? Colors.orange : Colors.green,
         duration: const Duration(seconds: 2),
         action: SnackBarAction(
           label: 'Lihat Keranjang',
           textColor: Colors.white,
-          onPressed: () => setState(() => _selectedIndex = 1),
+          onPressed: () {
+            if (!widget.isGuest) {
+              setState(() => _selectedIndex = 1);
+            } else {
+              GuestDialogs.showCartDialog(context, _getCartMap(), _redirectToLogin);
+            }
+          },
         ),
       ),
     );
   }
 
-  void _updateCartFromCartScreen(Map<String, int> updatedCart) {
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
+      ),
+    );
+  }
+
+  Future<void> _updateCartFromCartScreen(Map<String, int> updatedCart) async {
+    if (widget.isGuest) {
+      _updateGuestCart(updatedCart);
+    } else if (_currentUser != null) {
+      await _updateUserCart(updatedCart);
+    }
+  }
+
+  void _updateGuestCart(Map<String, int> updatedCart) {
     setState(() {
-      _cartItems.clear();
+      _guestCartItems.clear();
       for (var entry in updatedCart.entries) {
         String productId = entry.key;
         int quantity = entry.value;
-        if (quantity > 0) {
-          Product? product = _productCache[productId];
-          if (product != null) {
-            _cartItems.add(CartItem(product: product, quantity: quantity));
-          } else {
-            _cartItems.add(
-              CartItem(
-                product: Product(
-                  id: productId,
-                  name: 'Produk Tidak Dikenal',
-                  description: 'Dari keranjang',
-                  price: '0',
-                  image: '',
-                  stock: 999,
-                  category: 'Lainnya',
-                ),
-                quantity: quantity,
-              ),
-            );
-          }
+        if (quantity > 0 && _productCache.containsKey(productId)) {
+          _guestCartItems.add(
+            CartItem(product: _productCache[productId]!, quantity: quantity),
+          );
         }
       }
     });
   }
 
+  Future<void> _updateUserCart(Map<String, int> updatedCart) async {
+    try {
+      await _firestoreService.updateUserCartBatch(_currentUser!.uid, updatedCart, _productCache);
+    } catch (e) {
+      _showErrorSnackBar('Gagal memperbarui keranjang: $e');
+    }
+  }
+
   Map<String, int> _getCartMap() {
-    return {for (var item in _cartItems) item.product.id: item.quantity};
+  if (widget.isGuest) {
+    return {for (var item in _guestCartItems) item.product.id: item.quantity};
   }
+  // Untuk user login, return empty map karena cart dikelola oleh StreamBuilder
+  return {};
+}
 
-  // PERBAIKAN UTAMA: Selalu return map (bukan null) dan pastikan semua produk di-include
   Map<String, String> _getProductImagesMap() {
-    Map<String, String> imageMap = {};
-
-    // Loop semua item di cart, bukan hanya yang memiliki gambar
-    for (var item in _cartItems) {
-      // Selalu tambahkan ke map, meskipun image kosong
-      imageMap[item.product.id] = item.product.image;
-      debugPrint(
-        'DEBUG: Product ${item.product.id} image: ${item.product.image}',
-      );
-    }
-
-    debugPrint('DEBUG: Final image map: $imageMap');
-    return imageMap;
+  if (widget.isGuest) {
+    return {for (var item in _guestCartItems) item.product.id: item.product.image};
   }
+  return {for (var product in _productCache.values) product.id: product.image};
+}
 
-  // PERBAIKAN: Selalu return map (bukan null)
   Map<String, String> _getProductNamesMap() {
-    Map<String, String> nameMap = {};
-    for (var item in _cartItems) {
-      nameMap[item.product.id] = item.product.name;
-    }
-    return nameMap;
+    return {for (var item in _guestCartItems) item.product.id: item.product.name};
   }
 
-  // PERBAIKAN: Selalu return map (bukan null)
   Map<String, double> _getProductPricesMap() {
-    Map<String, double> priceMap = {};
-    for (var item in _cartItems) {
-      double price = _parsePrice(item.product.price);
-      priceMap[item.product.id] = price;
-    }
-    return priceMap;
+    return {
+      for (var item in _guestCartItems)
+        item.product.id: _parsePrice(item.product.price)
+    };
   }
 
-  // PERBAIKAN: Selalu return map (bukan null)
   Map<String, int> _getProductStockMap() {
-    Map<String, int> stockMap = {};
-    for (var item in _cartItems) {
-      stockMap[item.product.id] = item.product.stock;
-    }
-    return stockMap;
+    return {for (var item in _guestCartItems) item.product.id: item.product.stock};
   }
 
-  // Helper function untuk parsing harga
   double _parsePrice(String priceString) {
-    // Hapus "Rp", spasi, dan titik pemisah ribuan
     String cleanPrice = priceString
         .replaceAll('Rp', '')
         .replaceAll(' ', '')
         .replaceAll('.', '')
         .replaceAll(',', '');
-
-    // Coba parse ke double
     try {
       return double.parse(cleanPrice);
     } catch (e) {
-      debugPrint('Error parsing price: $priceString');
       return 0.0;
     }
   }
 
   int get _totalCartItems =>
-      _cartItems.fold(0, (sum, item) => sum + item.quantity);
+      _guestCartItems.fold(0, (sum, item) => sum + item.quantity);
 
   void _redirectToLogin() {
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (_) => const LoginScreen()),
     );
+  }
+
+  Future<void> _syncGuestCartOnLogin() async {
+    if (_guestCartItems.isEmpty) return;
+    
+    _currentUser = FirebaseAuth.instance.currentUser;
+    if (_currentUser != null) {
+      try {
+        for (var item in _guestCartItems) {
+          await _firestoreService.updateCartItem(
+              _currentUser!.uid, item.product, item.quantity);
+        }
+        setState(() {
+          _guestCartItems.clear();
+        });
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Keranjang tamu telah disinkronkan'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          _showErrorSnackBar('Gagal menyinkronkan keranjang tamu: $e');
+        }
+      }
+    }
   }
 
   @override
@@ -221,9 +271,7 @@ class _HomeScreenState extends State<HomeScreen> {
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
         selectedItemColor:
-            widget.isGuest
-                ? const Color.fromARGB(255, 0, 140, 255)
-                : Colors.blue,
+            widget.isGuest ? const Color.fromARGB(255, 0, 140, 255) : Colors.blue,
         unselectedItemColor: Colors.grey,
         type: BottomNavigationBarType.fixed,
         items: [

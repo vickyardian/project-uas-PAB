@@ -1,7 +1,9 @@
-import 'package:flutter/material.dart';
+//widgets/home_content.dart
 import 'package:carousel_slider/carousel_slider.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import 'package:roti_nyaman/models/product.dart';
-import 'package:roti_nyaman/data/data_product.dart';
+import 'package:roti_nyaman/services/firestore_service.dart';
 import 'product_card.dart';
 
 class HomeContent extends StatelessWidget {
@@ -20,13 +22,6 @@ class HomeContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // DEBUG: Print cart data ketika HomeContent di-build
-    debugPrint('DEBUG HomeContent: Received cart data: $cart');
-    debugPrint(
-      'DEBUG HomeContent: Cart total items: ${cart.values.fold(0, (sum, qty) => sum + qty)}',
-    );
-    debugPrint('DEBUG HomeContent: Cart isEmpty: ${cart.isEmpty}');
-
     final List<String> carouselImages = [
       'assets/carousel/carousel1.jpg',
       'assets/carousel/carousel2.jpg',
@@ -35,14 +30,13 @@ class HomeContent extends StatelessWidget {
 
     return Column(
       children: [
-        // Header dengan design mirip LaRitta
         Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                const Color(0xFFFF5722), // Orange-red
+                const Color(0xFFFF5722),
                 const Color(0xFFE64A19),
               ],
             ),
@@ -81,9 +75,7 @@ class HomeContent extends StatelessWidget {
                         onPressed: () {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text(
-                                'Fitur notifikasi akan segera hadir',
-                              ),
+                              content: Text('Fitur notifikasi akan segera hadir'),
                               duration: Duration(seconds: 2),
                             ),
                           );
@@ -117,7 +109,6 @@ class HomeContent extends StatelessWidget {
             ),
           ),
         ),
-
         Expanded(
           child: SingleChildScrollView(
             child: Column(
@@ -127,7 +118,7 @@ class HomeContent extends StatelessWidget {
                 _buildOrderTypeSection(),
                 _buildOutletSection(),
                 _buildQuickCategories(),
-                _buildProductsSection(dataProduk),
+                _buildProductsSection(),
                 const SizedBox(height: 80),
               ],
             ),
@@ -137,66 +128,83 @@ class HomeContent extends StatelessWidget {
     );
   }
 
-  // PERBAIKAN: Widget cart button dengan key untuk memaksa rebuild
   Widget _buildCartButton() {
-    final totalItems = cart.values.fold(0, (sum, qty) => sum + qty);
-
-    // DEBUG: Print setiap kali cart button di-build
-    debugPrint('DEBUG CartButton: Total items: $totalItems');
-    debugPrint('DEBUG CartButton: Cart data: $cart');
-
-    return GestureDetector(
-      key: ValueKey(
-        'cart_button_$totalItems',
-      ), // TAMBAHAN: Key untuk memaksa rebuild
-      onTap: () {
-        debugPrint('DEBUG: Cart button pressed');
-        onCartPressed();
-      },
-      child: Stack(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(
-              Icons.shopping_cart,
-              color: Colors.white,
-              size: 24,
-            ),
+    final user = FirebaseAuth.instance.currentUser;
+    if (isGuest || user == null) {
+      return GestureDetector(
+        onTap: onCartPressed,
+        child: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.2),
+            borderRadius: BorderRadius.circular(12),
           ),
-          // PERBAIKAN: Kondisi yang lebih spesifik untuk menampilkan badge
-          if (totalItems > 0)
-            Positioned(
-              right: 0,
-              top: 0,
-              child: Container(
-                key: ValueKey('badge_$totalItems'), // TAMBAHAN: Key untuk badge
-                padding: const EdgeInsets.all(4),
+          child: const Icon(
+            Icons.shopping_cart,
+            color: Colors.white,
+            size: 24,
+          ),
+        ),
+      );
+    }
+
+    return StreamBuilder<Map<String, int>>(
+      stream: FirestoreService().streamCart(user.uid),
+      builder: (context, snapshot) {
+
+          
+
+        final totalItems = snapshot.hasData
+            ? snapshot.data!.values.fold(0, (sum, qty) => sum + qty)
+            : cart.values.fold(0, (sum, qty) => sum + qty);
+
+        return GestureDetector(
+          key: ValueKey('cart_button_$totalItems'),
+          onTap: onCartPressed,
+          child: Stack(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.yellow[700],
-                  borderRadius: BorderRadius.circular(10),
+                  color: Colors.white.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(12),
                 ),
-                constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
-                child: Text(
-                  '$totalItems',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  textAlign: TextAlign.center,
+                child: const Icon(
+                  Icons.shopping_cart,
+                  color: Colors.white,
+                  size: 24,
                 ),
               ),
-            ),
-        ],
-      ),
+              if (totalItems > 0)
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  child: Container(
+                    key: ValueKey('badge_$totalItems'),
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.yellow[700],
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
+                    child: Text(
+                      '$totalItems',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 
-  // Widget lainnya tetap sama...
   Widget _buildCarousel(List<String> carouselImages) {
     return Container(
       margin: const EdgeInsets.all(16),
@@ -208,74 +216,73 @@ class HomeContent extends StatelessWidget {
           enlargeCenterPage: true,
           viewportFraction: 0.95,
         ),
-        items:
-            carouselImages.map((imageUrl) {
-              return Builder(
-                builder: (context) {
-                  return Container(
-                    width: MediaQuery.of(context).size.width,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(15),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 10,
-                          offset: const Offset(0, 5),
-                        ),
-                      ],
+        items: carouselImages.map((imageUrl) {
+          return Builder(
+            builder: (context) {
+              return Container(
+                width: MediaQuery.of(context).size.width,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(15),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 10,
+                      offset: const Offset(0, 5),
                     ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(15),
-                      child: Stack(
-                        children: [
-                          Image.asset(
-                            imageUrl,
-                            fit: BoxFit.cover,
-                            width: double.infinity,
-                            height: double.infinity,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Container(
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    colors: [
-                                      Colors.red[400]!,
-                                      Colors.red[600]!,
-                                    ],
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(15),
+                  child: Stack(
+                    children: [
+                      Image.asset(
+                        imageUrl,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: double.infinity,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Container(
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  Colors.red[400]!,
+                                  Colors.red[600]!,
+                                ],
+                              ),
+                            ),
+                            child: const Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    'COOKIES',
+                                    style: TextStyle(
+                                      color: Colors.yellow,
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
-                                ),
-                                child: const Center(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Text(
-                                        'COOKIES',
-                                        style: TextStyle(
-                                          color: Colors.yellow,
-                                          fontSize: 24,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      Text(
-                                        'SUPER HEMAT',
-                                        style: TextStyle(
-                                          color: Colors.yellow,
-                                          fontSize: 24,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                    ],
+                                  Text(
+                                    'SUPER HEMAT',
+                                    style: TextStyle(
+                                      color: Colors.yellow,
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
-                                ),
-                              );
-                            },
-                          ),
-                        ],
+                                ],
+                              ),
+                            ),
+                          );
+                        },
                       ),
-                    ),
-                  );
-                },
+                    ],
+                  ),
+                ),
               );
-            }).toList(),
+            },
+          );
+        }).toList(),
       ),
     );
   }
@@ -531,43 +538,43 @@ class HomeContent extends StatelessWidget {
       margin: const EdgeInsets.all(16),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children:
-            categories.map((category) {
-              return GestureDetector(
-                onTap: () {},
-                child: Column(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: (category['color'] as Color).withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        category['icon'] as IconData,
-                        color: category['color'] as Color,
-                        size: 24,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      category['label'] as String,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
+        children: categories.map((category) {
+          return GestureDetector(
+            onTap: () {},
+            child: Column(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: (category['color'] as Color).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    category['icon'] as IconData,
+                    color: category['color'] as Color,
+                    size: 24,
+                  ),
                 ),
-              );
-            }).toList(),
+                const SizedBox(height: 8),
+                Text(
+                  category['label'] as String,
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          );
+        }).toList(),
       ),
     );
   }
 
-  // PERBAIKAN: Menambahkan key pada ProductCard untuk memaksa rebuild
-  Widget _buildProductsSection(List<Product> products) {
+  Widget _buildProductsSection() {
+    final FirestoreService firestoreService = FirestoreService();
+
     return Column(
       children: [
         Padding(
@@ -593,36 +600,53 @@ class HomeContent extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        SizedBox(
-          height: 260,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: products.length > 6 ? 6 : products.length,
-            itemBuilder: (context, index) {
-              final product = products[index];
-              final cartCount =
-                  cart[product.id] ?? 0; // TAMBAHAN: Ambil jumlah item di cart
-
-              return Container(
-                width: 175,
-                margin: const EdgeInsets.only(right: 12),
-                child: ProductCard(
-                  key: ValueKey(
-                    '${product.id}_$cartCount',
-                  ), // TAMBAHAN: Key yang berubah saat cart berubah
-                  product: product,
-                  isGuest: isGuest,
-                  onAddToCart: (Product product) {
-                    debugPrint(
-                      'DEBUG HomeContent: ProductCard called onAddToCart for ${product.id}',
-                    );
-                    onAddToCart(product);
-                  },
-                ),
+        StreamBuilder<List<Product>>(
+          stream: firestoreService.streamAllProducts(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const SizedBox(
+                height: 260,
+                child: Center(child: CircularProgressIndicator()),
               );
-            },
-          ),
+            }
+            if (snapshot.hasError) {
+              return const SizedBox(
+                height: 260,
+                child: Center(child: Text('Gagal memuat produk')),
+              );
+            }
+            if (!snapshot.hasData || snapshot.data!.isEmpty) {
+              return const SizedBox(
+                height: 260,
+                child: Center(child: Text('Tidak ada produk tersedia')),
+              );
+            }
+
+            final products = snapshot.data!;
+            return SizedBox(
+              height: 260,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: products.length > 6 ? 6 : products.length,
+                itemBuilder: (context, index) {
+                  final product = products[index];
+                  final cartCount = cart[product.id] ?? 0;
+
+                  return Container(
+                    width: 175,
+                    margin: const EdgeInsets.only(right: 12),
+                    child: ProductCard(
+                      key: ValueKey('${product.id}_$cartCount'),
+                      product: product,
+                      isGuest: isGuest,
+                      onAddToCart: onAddToCart,
+                    ),
+                  );
+                },
+              ),
+            );
+          },
         ),
         const SizedBox(height: 20),
         Padding(
@@ -648,38 +672,55 @@ class HomeContent extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: products.length > 4 ? 4 : products.length,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisSpacing: 16,
-              crossAxisSpacing: 12,
-              childAspectRatio: 0.65,
-            ),
-            itemBuilder: (context, index) {
-              final product = products[index];
-              final cartCount =
-                  cart[product.id] ?? 0; // TAMBAHAN: Ambil jumlah item di cart
-
-              return ProductCard(
-                key: ValueKey(
-                  '${product.id}_$cartCount',
-                ), // TAMBAHAN: Key yang berubah saat cart berubah
-                product: product,
-                isGuest: isGuest,
-                onAddToCart: (Product product) {
-                  debugPrint(
-                    'DEBUG HomeContent: ProductCard called onAddToCart for ${product.id}',
-                  );
-                  onAddToCart(product);
-                },
+        StreamBuilder<List<Product>>(
+          stream: firestoreService.streamBestSellerProducts(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: Center(child: CircularProgressIndicator()),
               );
-            },
-          ),
+            }
+            if (snapshot.hasError) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: Center(child: Text('Gagal memuat produk best seller')),
+              );
+            }
+            if (!snapshot.hasData || snapshot.data!.isEmpty) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: Center(child: Text('Tidak ada produk best seller')),
+              );
+            }
+
+            final products = snapshot.data!;
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: products.length > 4 ? 4 : products.length,
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  mainAxisSpacing: 16,
+                  crossAxisSpacing: 12,
+                  childAspectRatio: 0.65,
+                ),
+                itemBuilder: (context, index) {
+                  final product = products[index];
+                  final cartCount = cart[product.id] ?? 0;
+
+                  return ProductCard(
+                    key: ValueKey('${product.id}_$cartCount'),
+                    product: product,
+                    isGuest: isGuest,
+                    onAddToCart: onAddToCart,
+                  );
+                },
+              ),
+            );
+          },
         ),
       ],
     );

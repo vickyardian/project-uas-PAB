@@ -1,12 +1,15 @@
+// models/product.dart
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class Product {
-  final String id; // Ubah dari int ke String untuk konsistensi dengan data
+  final String id;
   final String name;
   final String price;
   final String image;
   final String description;
   final int stock;
   final String category;
-  late final bool isLiked; // Tambahkan sebagai field final
+  final bool isLiked;
 
   Product({
     required this.id,
@@ -16,10 +19,10 @@ class Product {
     required this.description,
     required this.stock,
     required this.category,
-    this.isLiked = false, // Default value false
+    this.isLiked = false,
   });
 
-  // Method untuk membuat copy dari Product
+  // Membuat salinan produk
   Product copyWith({
     String? id,
     String? name,
@@ -42,8 +45,8 @@ class Product {
     );
   }
 
-  // Method untuk konversi ke Map
-  Map<String, dynamic> toMap() {
+  // Konversi ke format Firestore
+  Map<String, dynamic> toFirestore() {
     return {
       'id': id,
       'name': name,
@@ -56,10 +59,11 @@ class Product {
     };
   }
 
-  // Method untuk membuat Product dari Map
-  factory Product.fromMap(Map<String, dynamic> map) {
+  // Membuat Product dari dokumen Firestore
+  factory Product.fromFirestore(DocumentSnapshot doc) {
+    final map = doc.data() as Map<String, dynamic>;
     return Product(
-      id: map['id']?.toString() ?? '0',
+      id: map['id']?.toString() ?? doc.id,
       name: map['name'] ?? '',
       price: map['price'] ?? '',
       image: map['image'] ?? '',
@@ -70,22 +74,22 @@ class Product {
     );
   }
 
-  // Method untuk parsing harga dari string ke double
+  // Parsing harga ke double
   double get priceAsDouble {
     String priceStr = price.replaceAll(RegExp(r'[^\d]'), '');
     return double.tryParse(priceStr) ?? 0;
   }
 
-  // Method untuk format harga dengan titik sebagai pemisah ribuan
+  // Format harga dengan pemisah ribuan
   String get formattedPrice {
     double priceValue = priceAsDouble;
     return 'Rp ${priceValue.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}';
   }
 
-  // Method untuk cek apakah produk tersedia
+  // Cek ketersediaan produk
   bool get isAvailable => stock > 0;
 
-  // Method untuk toggle like status
+  // Toggle status suka
   Product toggleLike() {
     return copyWith(isLiked: !isLiked);
   }

@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:roti_nyaman/services/auth_service.dart';
-import 'screens/welcome_screen.dart';
-import 'screens/home_screen.dart';
+import 'package:roti_nyaman/services/firestore_service.dart';
+import '../screens/welcome_screen.dart';
+import '../screens/home_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -56,9 +57,7 @@ class AuthWrapper extends StatelessWidget {
       builder: (context, snapshot) {
         // Loading state
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
+          return const InitialLoadingScreen();
         }
 
         // User sudah login
@@ -66,9 +65,109 @@ class AuthWrapper extends StatelessWidget {
           return const HomeScreen(isGuest: false);
         }
 
-        // User belum login, tampilkan welcome screen
-        return const WelcomeScreen();
+        // User belum login, tampilkan splash/welcome screen
+        return const SplashScreen();
       },
+    );
+  }
+}
+
+// Screen untuk loading awal (inisialisasi Firebase, dll)
+class InitialLoadingScreen extends StatefulWidget {
+  const InitialLoadingScreen({super.key});
+
+  @override
+  State<InitialLoadingScreen> createState() => _InitialLoadingScreenState();
+}
+
+class _InitialLoadingScreenState extends State<InitialLoadingScreen> {
+  @override
+  void initState() {
+    super.initState();
+    _initializeData();
+  }
+
+  _initializeData() async {
+    try {
+      // ✅ Jalankan Firestore operation di sini untuk inisialisasi data
+      await FirestoreService().addSampleProduct();
+      print('Sample product added successfully');
+    } catch (e) {
+      print('Error initializing data: $e');
+      // Handle error sesuai kebutuhan
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Color(0xFFFFF3E0), // Light orange
+              Color(0xFFFFE0B2), // Medium orange
+              Color(0xFFFFCC80), // Darker orange
+            ],
+          ),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Logo atau gambar splash
+              Container(
+                width: 100,
+                height: 100,
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade100,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.orange.shade300.withOpacity(0.5),
+                      blurRadius: 20,
+                      spreadRadius: 5,
+                    ),
+                  ],
+                ),
+                child: Icon(
+                  Icons.bakery_dining,
+                  size: 60,
+                  color: Colors.orange.shade700,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Roti Nyaman',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.orange.shade800,
+                ),
+              ),
+              const SizedBox(height: 32),
+              SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.orange.shade700),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'Menyiapkan aplikasi...',
+                style: TextStyle(
+                  color: Colors.orange.shade700,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
