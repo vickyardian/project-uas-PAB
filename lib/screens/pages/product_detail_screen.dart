@@ -1,19 +1,18 @@
+//screens/pages/product_detail_screen.dart
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:roti_nyaman/models/product.dart';
 import 'package:roti_nyaman/services/firestore_service.dart';
-import '../auth/login_screen.dart';
+import 'package:roti_nyaman/auth/login_screen.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final Product product;
   final bool isGuest;
-  final Function(Product, int)? onAddToCart; // BARU: Callback dengan quantity
 
   const ProductDetailScreen({
     super.key,
     required this.product,
     this.isGuest = false,
-    this.onAddToCart,
   });
 
   @override
@@ -23,7 +22,8 @@ class ProductDetailScreen extends StatefulWidget {
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
   bool _isLiked = false;
   int _quantity = 1;
-  bool _isLoading = false; // BARU: Loading state
+  bool _isLoading = false;
+  final FirestoreService _firestoreService = FirestoreService();
 
   @override
   void initState() {
@@ -36,34 +36,31 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       _showGuestDialog();
       return;
     }
-    
+
     setState(() {
       _isLiked = !_isLiked;
     });
-    
+
     try {
-      await FirestoreService().updateLikeStatus(widget.product.id, _isLiked);
+      // Update product like status using FirestoreService method
+      await _firestoreService.updateLikeStatus(widget.product.id, _isLiked);
     } catch (e) {
-      // Revert on error
+      // Revert state if update fails
       setState(() {
         _isLiked = !_isLiked;
       });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Gagal memperbarui status suka: $e')),
-        );
-      }
+      _showErrorMessage('Gagal memperbarui status suka: $e');
     }
   }
 
   Future<void> _addToCart() async {
-    if (_isLoading) return; // Prevent double tap
-    
+    if (_isLoading) return;
+
     if (widget.isGuest) {
       _showGuestDialog();
       return;
     }
-    
+
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       Navigator.push(
@@ -72,36 +69,37 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       );
       return;
     }
-    
+
+    // Check if quantity exceeds available stock
+    if (_quantity > widget.product.stock) {
+      _showErrorMessage('Jumlah melebihi stok yang tersedia');
+      return;
+    }
+
     setState(() {
       _isLoading = true;
     });
-    
+
     try {
-      // Use callback if provided, otherwise use FirestoreService directly
-      if (widget.onAddToCart != null) {
-        widget.onAddToCart!(widget.product, _quantity);
-      } else {
-        await FirestoreService().updateCartItem(user.uid, widget.product, _quantity);
-      }
-      
+      // Use FirestoreService updateCartItem method which returns cart document ID
+      await _firestoreService.updateCartItem(
+        user.uid,
+        widget.product,
+        _quantity,
+      );
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${widget.product.name} (${_quantity}x) ditambahkan ke keranjang'),
+            content: Text(
+              '${widget.product.name} ($_quantity) ditambahkan ke keranjang',
+            ),
             backgroundColor: Colors.green,
           ),
         );
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal menambahkan ke keranjang: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      _showErrorMessage('Gagal menambahkan ke keranjang: $e');
     } finally {
       if (mounted) {
         setState(() {
@@ -137,6 +135,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
     );
   }
 
+  void _showErrorMessage(String message) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: Colors.red),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -153,22 +159,34 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Image.network(
-              widget.product.image,
+            // Product Image
+            Container(
               height: 250,
               width: double.infinity,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) => Container(
-                height: 250,
-                color: Colors.grey,
-                child: const Center(child: Text('Gambar tidak tersedia')),
-              ),
+              color: Colors.grey[300],
+              child: widget.product.imageUrl != null
+                  ? Image.network(
+                      widget.product.imageUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) => const Center(
+                        child: Icon(
+                          Icons.image,
+                          size: 50,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    )
+                  : const Center(
+                      child: Icon(Icons.image, size: 50, color: Colors.grey),
+                    ),
             ),
+
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Product Name
                   Text(
                     widget.product.name,
                     style: const TextStyle(
@@ -177,8 +195,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
+
+                  // Price
                   Text(
-                    widget.product.price,
+                    'Rp ${widget.product.price.toStringAsFixed(0)}',
                     style: const TextStyle(
                       fontSize: 20,
                       color: Colors.red,
@@ -186,91 +206,119 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  // BARU: Stock indicator
+
+                  // Stock
                   Row(
                     children: [
                       Icon(
-                        widget.product.isAvailable ? Icons.check_circle : Icons.cancel,
-                        color: widget.product.isAvailable ? Colors.green : Colors.red,
+                        widget.product.stock > 0
+                            ? Icons.check_circle
+                            : Icons.cancel,
+                        color: widget.product.stock > 0
+                            ? Colors.green
+                            : Colors.red,
                         size: 16,
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        widget.product.isAvailable 
-                            ? 'Stok: ${widget.product.stock}' 
+                        widget.product.stock > 0
+                            ? 'Stok: ${widget.product.stock}'
                             : 'Stok habis',
                         style: TextStyle(
-                          color: widget.product.isAvailable ? Colors.green : Colors.red,
+                          color: widget.product.stock > 0
+                              ? Colors.green
+                              : Colors.red,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 16),
+
+                  // Description
                   Text(
                     widget.product.description,
                     style: const TextStyle(fontSize: 16),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 24),
+
+                  // Quantity Selector
                   Row(
                     children: [
-                      const Text(
-                        'Jumlah:',
-                        style: TextStyle(fontSize: 16),
-                      ),
+                      const Text('Jumlah:', style: TextStyle(fontSize: 16)),
                       const SizedBox(width: 16),
                       IconButton(
                         icon: const Icon(Icons.remove),
-                        onPressed: _quantity > 1 ? () {
-                          setState(() {
-                            _quantity--;
-                          });
-                        } : null,
+                        onPressed: _quantity > 1
+                            ? () {
+                                setState(() {
+                                  _quantity--;
+                                });
+                              }
+                            : null,
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
                         decoration: BoxDecoration(
                           border: Border.all(color: Colors.grey),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
                           '$_quantity',
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                       IconButton(
                         icon: const Icon(Icons.add),
-                        onPressed: _quantity < widget.product.stock ? () {
-                          setState(() {
-                            _quantity++;
-                          });
-                        } : null,
+                        onPressed: _quantity < widget.product.stock
+                            ? () {
+                                setState(() {
+                                  _quantity++;
+                                });
+                              }
+                            : null,
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: widget.product.isAvailable && !_isLoading ? _addToCart : null,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size(double.infinity, 50),
-                      disabledBackgroundColor: Colors.grey,
-                    ),
-                    child: _isLoading 
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
+                  const SizedBox(height: 24),
+
+                  // Add to Cart Button
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: widget.product.stock > 0 && !_isLoading
+                          ? _addToCart
+                          : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange,
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor: Colors.grey,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: _isLoading
+                          ? const SizedBox(
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : Text(
+                              widget.product.stock > 0
+                                  ? 'Tambah ke Keranjang'
+                                  : 'Stok Habis',
                             ),
-                          )
-                        : Text(
-                            widget.product.isAvailable 
-                                ? 'Tambah ke Keranjang' 
-                                : 'Stok Habis'
-                          ),
+                    ),
                   ),
                 ],
               ),

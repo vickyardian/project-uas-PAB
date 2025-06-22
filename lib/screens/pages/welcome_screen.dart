@@ -1,8 +1,8 @@
 // File: lib/screen/welcome_screen.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../auth/login_screen.dart';
-import '../screens/home_screen.dart';
+import '../../auth/login_screen.dart';
+import 'home_screen.dart';
 
 // Constants for better maintainability
 class SplashConstants {

@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'package:roti_nyaman/services/auth_service.dart';
-import 'package:roti_nyaman/services/firestore_service.dart';
-import '../screens/welcome_screen.dart';
-import '../screens/home_screen.dart';
+import 'package:roti_nyaman/auth/register_screen.dart';
+import 'package:roti_nyaman/auth/login_screen.dart';
+import 'package:roti_nyaman/screens/pages/welcome_screen.dart';
+import 'package:roti_nyaman/screens/pages/home_screen.dart';
+import 'package:roti_nyaman/screens/admins/admin_dashboard.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -25,8 +27,8 @@ class MyApp extends StatelessWidget {
           brightness: Brightness.light,
         ),
         useMaterial3: true,
-        appBarTheme: AppBarTheme(
-          backgroundColor: const Color.fromARGB(255, 0, 140, 255),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color.fromARGB(255, 0, 140, 255),
           foregroundColor: Colors.white,
           elevation: 0,
         ),
@@ -40,7 +42,15 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      home: const AuthWrapper(),
+      // Tambahkan routes untuk navigasi
+      routes: {
+        '/': (context) => const AuthWrapper(),
+        '/login': (context) => const LoginScreen(),
+        '/register': (context) => const RegisterScreen(),
+        '/home_screen': (context) => const HomeScreen(isGuest: false),
+        '/admin_dashboard': (context) => const AdminDashboardScreen(),
+        '/welcome': (context) => const SplashScreen(),
+      },
       debugShowCheckedModeBanner: false,
     );
   }
@@ -63,10 +73,24 @@ class AuthWrapper extends StatelessWidget {
 
         // User sudah login
         if (snapshot.hasData && snapshot.data != null) {
-          return const HomeScreen(isGuest: false);
+          // Check apakah user admin atau customer
+          return FutureBuilder<bool>(
+            future: authService.isAdmin(),
+            builder: (context, adminSnapshot) {
+              if (adminSnapshot.connectionState == ConnectionState.waiting) {
+                return const InitialLoadingScreen();
+              }
+              
+              if (adminSnapshot.data == true) {
+                return const AdminDashboardScreen();
+              } else {
+                return const HomeScreen(isGuest: false);
+              }
+            },
+          );
         }
 
-        // User belum login, tampilkan splash/welcome screen
+        // User belum login, tampilkan welcome screen
         return const SplashScreen();
       },
     );
@@ -88,14 +112,28 @@ class _InitialLoadingScreenState extends State<InitialLoadingScreen> {
     _initializeData();
   }
 
-  _initializeData() async {
+  Future<void> _initializeData() async {
     try {
-      // ✅ Jalankan Firestore operation di sini untuk inisialisasi data
-      await FirestoreService().addSampleProduct();
-      print('Sample product added successfully');
+      // Inisialisasi data atau operasi startup lainnya jika diperlukan
+      // Sementara kosong karena addSampleProduct belum tersedia
+      await Future.delayed(const Duration(milliseconds: 500)); // Simulasi loading
+      
+      // Gunakan debugPrint untuk menghindari warning
+      debugPrint('App initialized successfully');
     } catch (e) {
-      print('Error initializing data: $e');
+      // Gunakan debugPrint untuk error logging
+      debugPrint('Error initializing data: $e');
+      
+      // Untuk production, bisa tambahkan error reporting
+      // Misalnya: FirebaseCrashlytics.instance.recordError(e, stackTrace);
+      
       // Handle error sesuai kebutuhan
+      if (mounted) {
+        // Tampilkan error message atau redirect ke error screen jika perlu
+        // ScaffoldMessenger.of(context).showSnackBar(
+        //   const SnackBar(content: Text('Terjadi kesalahan saat memuat aplikasi')),
+        // );
+      }
     }
   }
 

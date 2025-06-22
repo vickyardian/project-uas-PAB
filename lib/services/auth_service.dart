@@ -1,156 +1,379 @@
-import 'package:firebase_auth/firebase_auth.dart';
+//services/auth_service.dart
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter/services.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:roti_nyaman/models/user.dart';
+
+// Custom Exception for Authentication Errors
+class AuthException implements Exception {
+  final String message;
+  final String code;
+
+  AuthException(this.message, this.code);
+
+  @override
+  String toString() => 'AuthException($code): $message';
+}
 
 class AuthService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final firebase_auth.FirebaseAuth _auth = firebase_auth.FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  // Current user
-  User? get currentUser => _auth.currentUser;
+  // Mendapatkan pengguna saat ini
+  firebase_auth.User? get currentUser => _auth.currentUser;
 
-  // Stream untuk auth state changes
-  Stream<User?> get authStateChanges => _auth.authStateChanges();
+  // Stream untuk perubahan status autentikasi
+  Stream<firebase_auth.User?> get authStateChanges => _auth.authStateChanges();
 
   // Login dengan email dan password
-  Future<User?> loginUser(String email, String password) async {
+  Future<firebase_auth.User?> loginUser(String email, String password) async {
     try {
-      UserCredential credential = await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+      if (email.isEmpty || password.isEmpty) {
+        throw AuthException(
+          'Email dan password tidak boleh kosong',
+          'INVALID_INPUT',
+        );
+      }
+      firebase_auth.UserCredential credential = await _auth
+          .signInWithEmailAndPassword(email: email.trim(), password: password);
       return credential.user;
-    } on FirebaseAuthException catch (e) {
+    } on firebase_auth.FirebaseAuthException catch (e) {
       throw _handleAuthException(e);
+    } catch (e) {
+      throw AuthException('Terjadi kesalahan saat login: $e', 'UNKNOWN_ERROR');
     }
   }
 
-  // Register dengan email dan password
-  Future<User?> registerUser(String name, String email, String password) async {
+  // Registrasi pengguna baru
+  Future<firebase_auth.User?> registerUser(
+    String name,
+    String email,
+    String password,
+  ) async {
     try {
-      UserCredential credential = await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+      if (name.isEmpty || email.isEmpty || password.isEmpty) {
+        throw AuthException(
+          'Nama, email, dan password tidak boleh kosong',
+          'INVALID_INPUT',
+        );
+      }
+
+      firebase_auth.UserCredential credential = await _auth
+          .createUserWithEmailAndPassword(
+            email: email.trim(),
+            password: password,
+          );
 
       // Update display name
       await credential.user?.updateDisplayName(name);
 
+      // Buat User object sesuai model yang ada
+      final user = User(
+        id: credential.user!.uid,
+        name: name,
+        email: email.trim(),
+        role: 'customer', // Default role customer (bukan admin)
+        createdAt: DateTime.now(),
+        isActive: true,
+      );
+
+      // Simpan ke Firestore
+      await _db.collection('users').doc(user.id).set(user.toFirestore());
+
       return credential.user;
-    } on FirebaseAuthException catch (e) {
+    } on firebase_auth.FirebaseAuthException catch (e) {
       throw _handleAuthException(e);
+    } catch (e) {
+      throw AuthException(
+        'Terjadi kesalahan saat registrasi: $e',
+        'UNKNOWN_ERROR',
+      );
     }
   }
 
-  // Sign in dengan Google
-  Future<User?> signInWithGoogle() async {
+  // Login dengan Google
+  Future<firebase_auth.User?> signInWithGoogle() async {
     try {
-      // Sign out terlebih dahulu untuk memastikan account picker muncul
-      await _googleSignIn.signOut();
-
-      // Trigger the authentication flow
       final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-
       if (googleUser == null) {
-        // User membatalkan proses sign in
-        throw 'Login dibatalkan oleh pengguna';
+        // User membatalkan login, return null (bukan throw exception)
+        return null;
       }
 
-      // Obtain the auth details from the request
       final GoogleSignInAuthentication googleAuth =
           await googleUser.authentication;
-
-      // Pastikan token tidak null
       if (googleAuth.accessToken == null || googleAuth.idToken == null) {
-        throw 'Gagal mendapatkan kredensial Google';
+        throw AuthException(
+          'Gagal mendapatkan kredensial Google',
+          'INVALID_CREDENTIAL',
+        );
       }
 
-      // Create a new credential
-      final credential = GoogleAuthProvider.credential(
+      final credential = firebase_auth.GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
-      // Sign in to Firebase with the Google credential
-      UserCredential userCredential = await _auth.signInWithCredential(
-        credential,
-      );
+      firebase_auth.UserCredential userCredential = await _auth
+          .signInWithCredential(credential);
+
+      // Cek apakah user sudah ada di Firestore
+      final userDoc =
+          await _db.collection('users').doc(userCredential.user!.uid).get();
+
+      if (!userDoc.exists) {
+        // Buat User baru jika belum ada
+        final user = User(
+          id: userCredential.user!.uid,
+          name: userCredential.user!.displayName ?? 'Pengguna Google',
+          email: userCredential.user!.email ?? '',
+          role: 'customer', // Default role customer
+          createdAt: DateTime.now(),
+          isActive: true,
+        );
+
+        await _db.collection('users').doc(user.id).set(user.toFirestore());
+      }
+
       return userCredential.user;
-    } on FirebaseAuthException catch (e) {
+    } on firebase_auth.FirebaseAuthException catch (e) {
       throw _handleAuthException(e);
     } on PlatformException catch (e) {
       throw _handleGoogleSignInException(e);
     } catch (e) {
-      throw 'Terjadi kesalahan saat login dengan Google: ${e.toString()}';
+      throw AuthException(
+        'Terjadi kesalahan saat login dengan Google: $e',
+        'UNKNOWN_ERROR',
+      );
     }
   }
 
   // Reset password
   Future<void> resetPassword(String email) async {
     try {
-      await _auth.sendPasswordResetEmail(email: email);
-    } on FirebaseAuthException catch (e) {
+      if (email.isEmpty) {
+        throw AuthException('Email tidak boleh kosong', 'INVALID_INPUT');
+      }
+      await _auth.sendPasswordResetEmail(email: email.trim());
+    } on firebase_auth.FirebaseAuthException catch (e) {
       throw _handleAuthException(e);
+    } catch (e) {
+      throw AuthException(
+        'Terjadi kesalahan saat mengirim email reset: $e',
+        'UNKNOWN_ERROR',
+      );
     }
   }
 
   // Logout
   Future<void> logout() async {
     try {
-      // Sign out dari Google jika user login dengan Google
       await _googleSignIn.signOut();
-      // Sign out dari Firebase
       await _auth.signOut();
     } catch (e) {
-      throw 'Terjadi kesalahan saat logout: ${e.toString()}';
+      throw AuthException('Terjadi kesalahan saat logout: $e', 'LOGOUT_ERROR');
     }
   }
 
-  // Handle Google Sign-In platform exceptions
-  String _handleGoogleSignInException(PlatformException e) {
-    switch (e.code) {
-      case 'sign_in_failed':
-        return 'Login Google gagal. Periksa koneksi internet dan coba lagi';
-      case 'network_error':
-        return 'Tidak ada koneksi internet';
-      case 'sign_in_canceled':
-        return 'Login dibatalkan oleh pengguna';
-      case 'sign_in_required':
-        return 'Perlu login ulang';
-      default:
-        return 'Terjadi kesalahan Google Sign-In: ${e.message}';
+  // Mendapatkan data pengguna dari Firestore
+  Future<User?> getUserData() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return null;
+
+      final doc = await _db.collection('users').doc(user.uid).get();
+      if (doc.exists) {
+        return User.fromFirestore(doc);
+      }
+
+      // Jika tidak ada di Firestore, buat default user
+      final defaultUser = User(
+        id: user.uid,
+        name: user.displayName ?? '',
+        email: user.email ?? '',
+        role: 'customer',
+        createdAt: DateTime.now(),
+        isActive: true,
+      );
+
+      // Simpan ke Firestore untuk konsistensi dengan merge option
+      await _db
+          .collection('users')
+          .doc(user.uid)
+          .set(defaultUser.toFirestore(), SetOptions(merge: true));
+
+      return defaultUser;
+    } catch (e) {
+      throw AuthException('Gagal mengambil data pengguna: $e', 'FETCH_ERROR');
     }
   }
 
-  // Handle Firebase Auth exceptions
-  String _handleAuthException(FirebaseAuthException e) {
+  // Memeriksa status admin - hanya check dari Firestore
+  Future<bool> isAdmin() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) return false;
+
+      final doc = await _db.collection('users').doc(user.uid).get();
+      if (doc.exists) {
+        final userData = User.fromFirestore(doc);
+        return userData.role == 'admin';
+      }
+      return false;
+    } catch (e) {
+      throw AuthException('Gagal memeriksa status admin: $e', 'FETCH_ERROR');
+    }
+  }
+
+  // Method untuk mendapatkan current user ID
+  String? getCurrentUserId() {
+    return _auth.currentUser?.uid;
+  }
+
+  // Method untuk check apakah user sudah login
+  bool isUserLoggedIn() {
+    return _auth.currentUser != null;
+  }
+
+  // Method untuk update profile user
+  Future<void> updateUserProfile({
+    String? name,
+    String? profileImageUrl,
+    String? profileImagePath,
+  }) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        throw AuthException('User tidak login', 'USER_NOT_LOGGED_IN');
+      }
+
+      final updates = <String, dynamic>{};
+
+      if (name != null) {
+        updates['name'] = name;
+        // Update juga display name di Firebase Auth
+        await user.updateDisplayName(name);
+      }
+
+      if (profileImageUrl != null) {
+        updates['profileImageUrl'] = profileImageUrl;
+      }
+
+      if (profileImagePath != null) {
+        updates['profileImagePath'] = profileImagePath;
+      }
+
+      if (updates.isNotEmpty) {
+        await _db.collection('users').doc(user.uid).update(updates);
+      }
+    } catch (e) {
+      throw AuthException(
+        'Gagal mengupdate profil: $e',
+        'UPDATE_PROFILE_ERROR',
+      );
+    }
+  }
+
+  // Method untuk delete account
+  Future<void> deleteAccount() async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null) {
+        throw AuthException('User tidak login', 'USER_NOT_LOGGED_IN');
+      }
+
+      // Hapus data user dari Firestore terlebih dahulu
+      await _db.collection('users').doc(user.uid).delete();
+
+      // Sign out dari Google jika perlu
+      await _googleSignIn.signOut();
+
+      // Hapus account dari Firebase Auth (ini akan otomatis sign out)
+      await user.delete();
+    } on firebase_auth.FirebaseAuthException catch (e) {
+      if (e.code == 'requires-recent-login') {
+        throw AuthException(
+          'Untuk keamanan, silakan login ulang sebelum menghapus akun',
+          'REQUIRES_RECENT_LOGIN',
+        );
+      }
+      throw _handleAuthException(e);
+    } catch (e) {
+      throw AuthException('Gagal menghapus akun: $e', 'DELETE_ACCOUNT_ERROR');
+    }
+  }
+
+  // Menangani error FirebaseAuthException
+  AuthException _handleAuthException(firebase_auth.FirebaseAuthException e) {
     switch (e.code) {
       case 'user-not-found':
-        return 'Email tidak terdaftar';
+        return AuthException('Email tidak terdaftar', 'USER_NOT_FOUND');
       case 'wrong-password':
-        return 'Password salah';
+        return AuthException('Password salah', 'WRONG_PASSWORD');
       case 'email-already-in-use':
-        return 'Email sudah digunakan';
+        return AuthException('Email sudah digunakan', 'EMAIL_ALREADY_IN_USE');
       case 'weak-password':
-        return 'Password terlalu lemah';
+        return AuthException('Password terlalu lemah', 'WEAK_PASSWORD');
       case 'invalid-email':
-        return 'Format email tidak valid';
+        return AuthException('Format email tidak valid', 'INVALID_EMAIL');
       case 'user-disabled':
-        return 'Akun telah dinonaktifkan';
+        return AuthException('Akun telah dinonaktifkan', 'USER_DISABLED');
       case 'too-many-requests':
-        return 'Terlalu banyak percobaan. Coba lagi nanti';
+        return AuthException(
+          'Terlalu banyak percobaan. Coba lagi nanti',
+          'TOO_MANY_REQUESTS',
+        );
       case 'operation-not-allowed':
-        return 'Operasi tidak diizinkan';
+        return AuthException(
+          'Operasi tidak diizinkan',
+          'OPERATION_NOT_ALLOWED',
+        );
       case 'account-exists-with-different-credential':
-        return 'Akun sudah ada dengan kredensial yang berbeda';
+        return AuthException(
+          'Akun sudah ada dengan kredensial yang berbeda',
+          'ACCOUNT_EXISTS',
+        );
       case 'invalid-credential':
-        return 'Kredensial tidak valid';
+        return AuthException('Kredensial tidak valid', 'INVALID_CREDENTIAL');
       case 'credential-already-in-use':
-        return 'Kredensial sudah digunakan';
+        return AuthException('Kredensial sudah digunakan', 'CREDENTIAL_IN_USE');
+      case 'requires-recent-login':
+        return AuthException(
+          'Operasi ini memerlukan login ulang',
+          'REQUIRES_RECENT_LOGIN',
+        );
       default:
-        return 'Terjadi kesalahan: ${e.message}';
+        return AuthException(
+          'Terjadi kesalahan: ${e.message}',
+          'UNKNOWN_AUTH_ERROR',
+        );
     }
   }
 
-  Future getUserData() async {}
+  // Menangani error Google Sign-In
+  AuthException _handleGoogleSignInException(PlatformException e) {
+    switch (e.code) {
+      case 'sign_in_failed':
+        return AuthException(
+          'Login Google gagal. Periksa koneksi internet dan coba lagi',
+          'SIGN_IN_FAILED',
+        );
+      case 'network_error':
+        return AuthException('Tidak ada koneksi internet', 'NETWORK_ERROR');
+      case 'sign_in_canceled':
+        return AuthException(
+          'Login dibatalkan oleh pengguna',
+          'SIGN_IN_CANCELED',
+        );
+      case 'sign_in_required':
+        return AuthException('Perlu login ulang', 'SIGN_IN_REQUIRED');
+      default:
+        return AuthException(
+          'Terjadi kesalahan Google Sign-In: ${e.message}',
+          'GOOGLE_SIGN_IN_ERROR',
+        );
+    }
+  }
 }

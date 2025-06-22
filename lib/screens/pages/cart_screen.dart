@@ -1,21 +1,19 @@
+//screens/cart_screen.dart
 import 'package:flutter/material.dart';
+import 'package:roti_nyaman/models/cart.dart';
 
 class CartScreen extends StatefulWidget {
-  final Map<String, int> cart;
-  final Function(Map<String, int>) onCartUpdated;
-  final Map<String, String> productImages; // PERBAIKAN: Remove nullable
-  final Map<String, String> productNames; // PERBAIKAN: Remove nullable
-  final Map<String, double> productPrices; // PERBAIKAN: Remove nullable
-  final Map<String, int> productStock; // PERBAIKAN: Remove nullable
+  final List<Cart> cartItems;
+  final Function(List<Cart>) onCartUpdated;
+  final String userId;
+  final Map<String, int>? productStock; // Optional stock data
 
   const CartScreen({
     super.key,
-    required this.cart,
+    required this.cartItems,
     required this.onCartUpdated,
-    required this.productImages, // PERBAIKAN: Required tanpa nullable
-    required this.productNames, // PERBAIKAN: Required tanpa nullable
-    required this.productPrices, // PERBAIKAN: Required tanpa nullable
-    required this.productStock, // PERBAIKAN: Required tanpa nullable
+    required this.userId,
+    this.productStock,
   });
 
   @override
@@ -23,26 +21,30 @@ class CartScreen extends StatefulWidget {
 }
 
 class _CartScreenState extends State<CartScreen> {
-  late Map<String, int> localCart;
+  late List<Cart> localCartItems;
 
   @override
   void initState() {
     super.initState();
-    localCart = Map<String, int>.from(widget.cart);
+    localCartItems = List<Cart>.from(widget.cartItems);
   }
 
   void _updateCart() {
-    widget.onCartUpdated(localCart);
+    widget.onCartUpdated(localCartItems);
   }
 
-  void _updateQuantity(String productId, int newQuantity) {
-    final maxStock = _getProductStock(productId);
+  void _updateQuantity(String cartId, int newQuantity) {
+    final cartIndex = localCartItems.indexWhere((item) => item.id == cartId);
+    if (cartIndex == -1) return;
+
+    final cartItem = localCartItems[cartIndex];
+    final maxStock = _getProductStock(cartItem.productId);
 
     if (newQuantity > maxStock) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Stok ${_getProductName(productId)} hanya tersedia $maxStock item',
+            'Stok ${cartItem.productName} hanya tersedia $maxStock item',
           ),
           backgroundColor: Colors.red,
           duration: const Duration(seconds: 2),
@@ -53,17 +55,33 @@ class _CartScreenState extends State<CartScreen> {
 
     setState(() {
       if (newQuantity <= 0) {
-        localCart.remove(productId);
+        localCartItems.removeAt(cartIndex);
       } else {
-        localCart[productId] = newQuantity;
+        localCartItems[cartIndex] = cartItem.copyWith(
+          quantity: newQuantity,
+          updatedAt: DateTime.now(),
+        );
       }
     });
     _updateCart();
   }
 
+  void _removeItem(String cartId) {
+    setState(() {
+      localCartItems.removeWhere((item) => item.id == cartId);
+    });
+    _updateCart();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Item dihapus dari keranjang'),
+        backgroundColor: Colors.orange,
+      ),
+    );
+  }
+
   void _clearCart() {
     setState(() {
-      localCart.clear();
+      localCartItems.clear();
     });
     _updateCart();
     ScaffoldMessenger.of(context).showSnackBar(
@@ -75,84 +93,26 @@ class _CartScreenState extends State<CartScreen> {
   }
 
   int _getProductStock(String productId) {
-    return widget.productStock[productId] ?? 999;
-  }
-
-  double _getProductPrice(String productId) {
-    // PERBAIKAN: Langsung ambil dari map yang sudah pasti ada
-    return widget.productPrices[productId] ?? _getFallbackPrice(productId);
-  }
-
-  // Fallback price jika tidak ada di map
-  double _getFallbackPrice(String productId) {
-    switch (productId.toLowerCase()) {
-      case 'roti_tawar':
-        return 8000.0;
-      case 'roti_coklat':
-        return 10000.0;
-      case 'roti_keju':
-        return 12000.0;
-      default:
-        return 5000.0;
-    }
-  }
-
-  String _getProductName(String productId) {
-    // PERBAIKAN: Langsung ambil dari map yang sudah pasti ada
-    return widget.productNames[productId] ?? _getDefaultProductName(productId);
-  }
-
-  double _getSubtotal(String productId) {
-    final price = _getProductPrice(productId);
-    final quantity = localCart[productId] ?? 0;
-    return price * quantity;
+    return widget.productStock?[productId] ?? 999;
   }
 
   double _getTotalPrice() {
-    double total = 0.0;
-    for (String productId in localCart.keys) {
-      total += _getSubtotal(productId);
-    }
-    return total;
+    return localCartItems.fold(0.0, (sum, item) => sum + item.totalPrice);
   }
 
   int _getTotalItems() {
-    return localCart.values.fold(0, (sum, qty) => sum + qty);
-  }
-
-  String _getDefaultProductName(String productId) {
-    switch (productId.toLowerCase()) {
-      case 'roti_tawar':
-        return 'Roti Tawar';
-      case 'roti_coklat':
-        return 'Roti Coklat';
-      case 'roti_keju':
-        return 'Roti Keju';
-      default:
-        return productId
-            .replaceAll('_', ' ')
-            .split(' ')
-            .map(
-              (word) =>
-                  word.isNotEmpty
-                      ? word[0].toUpperCase() + word.substring(1)
-                      : '',
-            )
-            .join(' ');
-    }
+    return localCartItems.fold(0, (sum, item) => sum + item.quantity);
   }
 
   String _formatCurrency(double amount) {
     return 'Rp ${amount.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}';
   }
 
-  Widget _buildProductImage(String productId) {
-    // PERBAIKAN: Langsung ambil image URL dari map
-    final imageUrl = widget.productImages[productId] ?? '';
+  Widget _buildProductImage(Cart cartItem) {
+    final imageUrl = cartItem.productImage ?? '';
 
-    debugPrint('DEBUG: CartScreen - Product $productId image: $imageUrl');
+    debugPrint('DEBUG: CartScreen - Product ${cartItem.productId} image: $imageUrl');
 
-    // Jika ada URL gambar dan tidak kosong, coba load
     if (imageUrl.isNotEmpty) {
       return Container(
         width: 80,
@@ -180,30 +140,27 @@ class _CartScreenState extends State<CartScreen> {
               );
             },
             errorBuilder: (context, error, stackTrace) {
-              debugPrint('ERROR: Failed to load image for $productId: $error');
-              return _buildFallbackImage(productId);
+              debugPrint('ERROR: Failed to load image for ${cartItem.productId}: $error');
+              return _buildFallbackImage(cartItem);
             },
           ),
         ),
       );
     }
 
-    // Jika tidak ada URL atau kosong, langsung tampilkan fallback
-    return _buildFallbackImage(productId);
+    return _buildFallbackImage(cartItem);
   }
 
-  Widget _buildFallbackImage(String productId) {
-    // PERBAIKAN: Lebih robust icon selection
+  Widget _buildFallbackImage(Cart cartItem) {
     IconData iconData;
     Color iconColor;
 
-    final productName = _getProductName(productId).toLowerCase();
+    final productName = cartItem.productName.toLowerCase();
 
     if (productName.contains('tawar') || productName.contains('bread')) {
       iconData = Icons.bakery_dining;
       iconColor = Colors.orange;
-    } else if (productName.contains('coklat') ||
-        productName.contains('chocolate')) {
+    } else if (productName.contains('coklat') || productName.contains('chocolate')) {
       iconData = Icons.cake;
       iconColor = Colors.brown;
     } else if (productName.contains('keju') || productName.contains('cheese')) {
@@ -231,7 +188,7 @@ class _CartScreenState extends State<CartScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (localCart.isEmpty) {
+    if (localCartItems.isEmpty) {
       return Scaffold(
         appBar: AppBar(
           title: const Text('Keranjang'),
@@ -285,12 +242,10 @@ class _CartScreenState extends State<CartScreen> {
           Expanded(
             child: ListView.builder(
               padding: const EdgeInsets.all(16),
-              itemCount: localCart.length,
+              itemCount: localCartItems.length,
               itemBuilder: (context, index) {
-                final productId = localCart.keys.elementAt(index);
-                final quantity = localCart[productId]!;
-                final price = _getProductPrice(productId);
-                final subtotal = _getSubtotal(productId);
+                final cartItem = localCartItems[index];
+                final maxStock = _getProductStock(cartItem.productId);
 
                 return Card(
                   margin: const EdgeInsets.only(bottom: 16),
@@ -303,14 +258,14 @@ class _CartScreenState extends State<CartScreen> {
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildProductImage(productId),
+                        _buildProductImage(cartItem),
                         const SizedBox(width: 16),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                _getProductName(productId),
+                                cartItem.productName,
                                 style: const TextStyle(
                                   fontWeight: FontWeight.bold,
                                   fontSize: 16,
@@ -318,7 +273,7 @@ class _CartScreenState extends State<CartScreen> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                _formatCurrency(price),
+                                _formatCurrency(cartItem.productPrice),
                                 style: const TextStyle(
                                   color: Colors.green,
                                   fontSize: 14,
@@ -327,7 +282,7 @@ class _CartScreenState extends State<CartScreen> {
                               ),
                               const SizedBox(height: 8),
                               Text(
-                                'Subtotal: ${_formatCurrency(subtotal)}',
+                                'Subtotal: ${_formatCurrency(cartItem.totalPrice)}',
                                 style: const TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w500,
@@ -335,7 +290,15 @@ class _CartScreenState extends State<CartScreen> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                'Stok tersedia: ${_getProductStock(productId)}',
+                                'Stok tersedia: $maxStock',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Ditambahkan: ${cartItem.createdAt.day}/${cartItem.createdAt.month}/${cartItem.createdAt.year}',
                                 style: TextStyle(
                                   fontSize: 12,
                                   color: Colors.grey[600],
@@ -350,19 +313,17 @@ class _CartScreenState extends State<CartScreen> {
                                       shape: BoxShape.circle,
                                     ),
                                     child: IconButton(
-                                      onPressed:
-                                          quantity > 1
-                                              ? () => _updateQuantity(
-                                                productId,
-                                                quantity - 1,
+                                      onPressed: cartItem.quantity > 1
+                                          ? () => _updateQuantity(
+                                                cartItem.id,
+                                                cartItem.quantity - 1,
                                               )
-                                              : null,
+                                          : null,
                                       icon: Icon(
                                         Icons.remove,
-                                        color:
-                                            quantity > 1
-                                                ? Colors.red
-                                                : Colors.grey,
+                                        color: cartItem.quantity > 1
+                                            ? Colors.red
+                                            : Colors.grey,
                                         size: 20,
                                       ),
                                       constraints: const BoxConstraints(
@@ -385,7 +346,7 @@ class _CartScreenState extends State<CartScreen> {
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                     child: Text(
-                                      '$quantity',
+                                      '${cartItem.quantity}',
                                       style: const TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 16,
@@ -395,29 +356,24 @@ class _CartScreenState extends State<CartScreen> {
                                   Container(
                                     decoration: BoxDecoration(
                                       border: Border.all(
-                                        color:
-                                            quantity <
-                                                    _getProductStock(productId)
-                                                ? Colors.green
-                                                : Colors.grey,
+                                        color: cartItem.quantity < maxStock
+                                            ? Colors.green
+                                            : Colors.grey,
                                       ),
                                       shape: BoxShape.circle,
                                     ),
                                     child: IconButton(
-                                      onPressed:
-                                          quantity < _getProductStock(productId)
-                                              ? () => _updateQuantity(
-                                                productId,
-                                                quantity + 1,
+                                      onPressed: cartItem.quantity < maxStock
+                                          ? () => _updateQuantity(
+                                                cartItem.id,
+                                                cartItem.quantity + 1,
                                               )
-                                              : null,
+                                          : null,
                                       icon: Icon(
                                         Icons.add,
-                                        color:
-                                            quantity <
-                                                    _getProductStock(productId)
-                                                ? Colors.green
-                                                : Colors.grey,
+                                        color: cartItem.quantity < maxStock
+                                            ? Colors.green
+                                            : Colors.grey,
                                         size: 20,
                                       ),
                                       constraints: const BoxConstraints(
@@ -426,6 +382,15 @@ class _CartScreenState extends State<CartScreen> {
                                       ),
                                       padding: EdgeInsets.zero,
                                     ),
+                                  ),
+                                  const Spacer(),
+                                  IconButton(
+                                    onPressed: () => _removeItem(cartItem.id),
+                                    icon: const Icon(
+                                      Icons.delete_outline,
+                                      color: Colors.red,
+                                    ),
+                                    tooltip: 'Hapus dari keranjang',
                                   ),
                                 ],
                               ),
@@ -492,19 +457,18 @@ class _CartScreenState extends State<CartScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed:
-                        localCart.isNotEmpty
-                            ? () {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    'Checkout - ${_formatCurrency(_getTotalPrice())}',
-                                  ),
-                                  backgroundColor: Colors.blue,
+                    onPressed: localCartItems.isNotEmpty
+                        ? () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Checkout - ${_formatCurrency(_getTotalPrice())}',
                                 ),
-                              );
-                            }
-                            : null,
+                                backgroundColor: Colors.blue,
+                              ),
+                            );
+                          }
+                        : null,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.blue,
                       foregroundColor: Colors.white,
