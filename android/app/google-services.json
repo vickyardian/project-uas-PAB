@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "372683523114-4uo0gatqchlgodcpim8cprhk487rusl0.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.roti_nyaman",
+            "certificate_hash": "f30c398e6adb053b58ea42ee5fb2cc7f34fffa86"
+          }
+        },
+        {
           "client_id": "372683523114-mtf6m9ljnh65p8kjnt3lh512gmrmf3g3.apps.googleusercontent.com",
           "client_type": 3
         }

@@ -1,4 +1,5 @@
-//auth/login_screen.dart
+// kemalthoriq/project-uas-pab/project-uas-PAB-26e19d1085d07632f2336f0187b5a09b07addb28/lib/auth/login_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:roti_nyaman/services/auth_service.dart';
 
@@ -55,10 +56,7 @@ class _LoginScreenState extends State<LoginScreen> {
     } on AuthException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.message),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text(e.message), backgroundColor: Colors.red),
         );
       }
     } catch (e) {
@@ -99,10 +97,7 @@ class _LoginScreenState extends State<LoginScreen> {
     } on AuthException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.message),
-            backgroundColor: Colors.red,
-          ),
+          SnackBar(content: Text(e.message), backgroundColor: Colors.red),
         );
       }
     } catch (e) {
@@ -125,106 +120,112 @@ class _LoginScreenState extends State<LoginScreen> {
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Reset Password'),
-        content: Form(
-          key: formKey,
-          child: TextFormField(
-            controller: emailController,
-            decoration: const InputDecoration(
-              labelText: 'Email',
-              hintText: 'Masukkan email Anda',
-              border: OutlineInputBorder(),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Reset Password'),
+            content: Form(
+              key: formKey,
+              child: TextFormField(
+                controller: emailController,
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  hintText: 'Masukkan email Anda',
+                  border: OutlineInputBorder(),
+                ),
+                keyboardType: TextInputType.emailAddress,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Email harus diisi';
+                  }
+                  if (!RegExp(
+                    r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                  ).hasMatch(value)) {
+                    return 'Format email tidak valid';
+                  }
+                  return null;
+                },
+              ),
             ),
-            keyboardType: TextInputType.emailAddress,
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Email harus diisi';
-              }
-              if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-                return 'Format email tidak valid';
-              }
-              return null;
-            },
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () {
-              emailController.dispose();
-              Navigator.pop(context);
-            },
-            child: const Text('Batal'),
-          ),
-          TextButton(
-            onPressed: () async {
-              if (!formKey.currentState!.validate()) return;
-              
-              try {
-                await _authService.resetPassword(
-                  emailController.text.trim(),
-                );
-                if (mounted) {
+            actions: [
+              TextButton(
+                onPressed: () {
                   emailController.dispose();
                   Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Email reset password telah dikirim'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                }
-              } on AuthException catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(e.message),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Terjadi kesalahan: $e'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              }
-            },
-            child: const Text('Kirim'),
+                },
+                child: const Text('Batal'),
+              ),
+              TextButton(
+                onPressed: () async {
+                  if (!formKey.currentState!.validate()) return;
+
+                  try {
+                    await _authService.resetPassword(
+                      emailController.text.trim(),
+                    );
+                    if (mounted) {
+                      emailController.dispose();
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Email reset password telah dikirim'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
+                  } on AuthException catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(e.message),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Terjadi kesalahan: $e'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  }
+                },
+                child: const Text('Kirim'),
+              ),
+            ],
           ),
-        ],
-      ),
     );
   }
 
   void _showGuestOption() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Masuk sebagai Tamu'),
-        content: const Text('Anda akan masuk tanpa akun. Beberapa fitur mungkin terbatas.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Batal'),
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Masuk sebagai Tamu'),
+            content: const Text(
+              'Anda akan masuk tanpa akun. Beberapa fitur mungkin terbatas.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Batal'),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.pushReplacementNamed(
+                    context,
+                    '/home_screen',
+                    arguments: {'isGuest': true},
+                  );
+                },
+                child: const Text('Lanjutkan'),
+              ),
+            ],
           ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pushReplacementNamed(
-                context,
-                '/home_screen',
-                arguments: {'isGuest': true},
-              );
-            },
-            child: const Text('Lanjutkan'),
-          ),
-        ],
-      ),
     );
   }
 
@@ -243,10 +244,7 @@ class _LoginScreenState extends State<LoginScreen> {
         actions: [
           TextButton(
             onPressed: _showGuestOption,
-            child: const Text(
-              'Tamu',
-              style: TextStyle(color: Colors.blue),
-            ),
+            child: const Text('Tamu', style: TextStyle(color: Colors.blue)),
           ),
         ],
       ),
@@ -259,7 +257,11 @@ class _LoginScreenState extends State<LoginScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 40),
-                const Icon(Icons.login, size: 80, color: Color.fromARGB(255, 0, 140, 255)),
+                const Icon(
+                  Icons.login,
+                  size: 80,
+                  color: Color.fromARGB(255, 0, 140, 255),
+                ),
                 const SizedBox(height: 40),
                 TextFormField(
                   controller: _emailController,
@@ -274,7 +276,9 @@ class _LoginScreenState extends State<LoginScreen> {
                     if (value == null || value.isEmpty) {
                       return 'Email harus diisi';
                     }
-                    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+                    if (!RegExp(
+                      r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                    ).hasMatch(value)) {
                       return 'Format email tidak valid';
                     }
                     return null;
@@ -290,9 +294,14 @@ class _LoginScreenState extends State<LoginScreen> {
                     prefixIcon: const Icon(Icons.lock),
                     suffixIcon: IconButton(
                       icon: Icon(
-                        _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                        _obscurePassword
+                            ? Icons.visibility
+                            : Icons.visibility_off,
                       ),
-                      onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                      onPressed:
+                          () => setState(
+                            () => _obscurePassword = !_obscurePassword,
+                          ),
                     ),
                     border: const OutlineInputBorder(),
                   ),
@@ -322,13 +331,17 @@ class _LoginScreenState extends State<LoginScreen> {
                     backgroundColor: const Color.fromARGB(255, 0, 140, 255),
                     foregroundColor: Colors.white,
                   ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                        )
-                      : const Text('Login', style: TextStyle(fontSize: 16)),
+                  child:
+                      _isLoading
+                          ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                          : const Text('Login', style: TextStyle(fontSize: 16)),
                 ),
                 const SizedBox(height: 16),
                 const Row(
@@ -351,24 +364,25 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     side: const BorderSide(color: Colors.grey),
                   ),
-                  icon: _isGoogleLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : Image.asset(
-                          'assets/icons/google_icon.png',
-                          height: 20,
-                          width: 20,
-                        ),
+                  icon:
+                      _isGoogleLoading
+                          ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                          : Image.asset(
+                            'assets/icons/google_icon.png',
+                            height: 20,
+                            width: 20,
+                          ),
                   label: const Text(
                     'Masuk dengan Google',
                     style: TextStyle(fontSize: 16),
                   ),
                 ),
                 const SizedBox(height: 24),
-                
+
                 // Demo Credentials Section
                 Container(
                   padding: const EdgeInsets.all(16),
@@ -382,9 +396,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     children: [
                       Row(
                         children: [
-                          Icon(Icons.info_outline, 
-                               size: 16, 
-                               color: Colors.blue.shade700),
+                          Icon(
+                            Icons.info_outline,
+                            size: 16,
+                            color: Colors.blue.shade700,
+                          ),
                           const SizedBox(width: 8),
                           Text(
                             'Demo Credentials:',
@@ -403,13 +419,22 @@ class _LoginScreenState extends State<LoginScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 GestureDetector(
-                                  onTap: () => _fillDemoCredentials('admin@gmail.com', 'admin123'),
+                                  onTap:
+                                      () => _fillDemoCredentials(
+                                        'admin@gmail.com',
+                                        'admin123',
+                                      ),
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 4,
+                                      horizontal: 8,
+                                    ),
                                     decoration: BoxDecoration(
                                       color: Colors.orange.shade100,
                                       borderRadius: BorderRadius.circular(4),
-                                      border: Border.all(color: Colors.orange.shade300),
+                                      border: Border.all(
+                                        color: Colors.orange.shade300,
+                                      ),
                                     ),
                                     child: Text(
                                       '👑 Admin: admin@gmail.com / admin123',
@@ -423,13 +448,22 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                                 const SizedBox(height: 4),
                                 GestureDetector(
-                                  onTap: () => _fillDemoCredentials('user@gmail.com', 'user123'),
+                                  onTap:
+                                      () => _fillDemoCredentials(
+                                        'user@gmail.com',
+                                        'user123',
+                                      ),
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 4,
+                                      horizontal: 8,
+                                    ),
                                     decoration: BoxDecoration(
                                       color: Colors.green.shade100,
                                       borderRadius: BorderRadius.circular(4),
-                                      border: Border.all(color: Colors.green.shade300),
+                                      border: Border.all(
+                                        color: Colors.green.shade300,
+                                      ),
                                     ),
                                     child: Text(
                                       '👤 Customer: user@gmail.com / user123',
@@ -458,7 +492,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ],
                   ),
                 ),
-                
+
                 const SizedBox(height: 24),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,

@@ -1,5 +1,5 @@
 //services/admin_firestore_service.dart
-import 'package:cloud_firestore/cloud_firestore.dart' hide Order  ;
+import 'package:cloud_firestore/cloud_firestore.dart' hide Order;
 import 'package:roti_nyaman/models/user.dart';
 import 'package:roti_nyaman/models/category.dart';
 import 'package:roti_nyaman/models/product.dart';
@@ -85,7 +85,10 @@ class AdminFirestoreService {
   }
 
   /// Update user profile photo from bytes (untuk web)
-  Future<void> updateUserProfilePhotoFromBytes(String userId, Uint8List imageBytes) async {
+  Future<void> updateUserProfilePhotoFromBytes(
+    String userId,
+    Uint8List imageBytes,
+  ) async {
     try {
       // Validate image size
       if (!ImgBBService.isValidImageSizeFromBytes(imageBytes)) {
@@ -258,7 +261,7 @@ class AdminFirestoreService {
   Future<void> addProductWithImage(Product product, File? imageFile) async {
     try {
       String? imageUrl;
-      
+
       if (imageFile != null) {
         // Validate image
         if (!ImgBBService.isValidImageFile(imageFile)) {
@@ -293,10 +296,13 @@ class AdminFirestoreService {
   }
 
   /// Add product dengan gambar dari bytes (untuk web)
-  Future<void> addProductWithImageBytes(Product product, Uint8List? imageBytes) async {
+  Future<void> addProductWithImageBytes(
+    Product product,
+    Uint8List? imageBytes,
+  ) async {
     try {
       String? imageUrl;
-      
+
       if (imageBytes != null) {
         // Validate image size
         if (!ImgBBService.isValidImageSizeFromBytes(imageBytes)) {

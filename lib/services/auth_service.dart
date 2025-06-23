@@ -210,19 +210,45 @@ class AuthService {
     }
   }
 
-  // Memeriksa status admin - hanya check dari Firestore
+  // Ganti fungsi isAdmin() yang lama dengan yang ini
   Future<bool> isAdmin() async {
+    print('--- Memulai Pengecekan Admin ---');
     try {
       final user = _auth.currentUser;
-      if (user == null) return false;
+      if (user == null) {
+        print('[DEBUG] isAdmin: Gagal, tidak ada pengguna yang login.');
+        print('--- Pengecekan Admin Selesai ---');
+        return false;
+      }
+
+      print('[DEBUG] isAdmin: User UID yang akan dicek: ${user.uid}');
 
       final doc = await _db.collection('users').doc(user.uid).get();
+
       if (doc.exists) {
+        print('[DEBUG] isAdmin: Dokumen ditemukan!');
+        print('[DEBUG] isAdmin: Data di dalam dokumen: ${doc.data()}');
+
         final userData = User.fromFirestore(doc);
-        return userData.role == 'admin';
+        final role = userData.role;
+        print('[DEBUG] isAdmin: Role dari data adalah: "$role"');
+
+        final bool result = role == 'admin';
+        print(
+          '[DEBUG] isAdmin: Hasil perbandingan (role == "admin") adalah: $result',
+        );
+        print('--- Pengecekan Admin Selesai ---');
+        return result;
+      } else {
+        print(
+          '[DEBUG] isAdmin: Gagal, dokumen dengan UID tersebut TIDAK DITEMUKAN di koleksi "users".',
+        );
+        print('--- Pengecekan Admin Selesai ---');
+        return false;
       }
-      return false;
     } catch (e) {
+      print('[DEBUG] isAdmin: Terjadi ERROR saat pengecekan: $e');
+      print('--- Pengecekan Admin Selesai ---');
       throw AuthException('Gagal memeriksa status admin: $e', 'FETCH_ERROR');
     }
   }
