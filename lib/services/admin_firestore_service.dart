@@ -1,4 +1,5 @@
-//services/admin_firestore_service.dart
+// lib/services/admin_firestore_service.dart
+
 import 'package:cloud_firestore/cloud_firestore.dart' hide Order;
 import 'package:roti_nyaman/models/user.dart';
 import 'package:roti_nyaman/models/category.dart';
@@ -173,6 +174,21 @@ class AdminFirestoreService {
               .map((doc) => Category.fromFirestore(doc))
               .toList();
         });
+  }
+
+  // PENAMBAHAN FUNGSI BARU
+  // Mengambil data kategori satu kali saja untuk form. Lebih andal.
+  Future<List<Category>> getAllCategoriesOnce() async {
+    try {
+      final snapshot =
+          await _db
+              .collection('categories')
+              .orderBy('createdAt', descending: true)
+              .get();
+      return snapshot.docs.map((doc) => Category.fromFirestore(doc)).toList();
+    } catch (e) {
+      throw Exception('Gagal mengambil data kategori: $e');
+    }
   }
 
   Future<void> addCategory(Category category) async {

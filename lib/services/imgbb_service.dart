@@ -5,7 +5,8 @@ import 'package:http/http.dart' as http;
 import 'dart:typed_data';
 
 class ImgBBService {
-  static const String _apiKey = 'YOUR_IMGBB_API_KEY'; // Ganti dengan API key ImgBB Anda
+  static const String _apiKey =
+      'https://ibb.co/gL9ZG09z'; // Ganti dengan API key ImgBB Anda
   static const String _baseUrl = 'https://api.imgbb.com/1/upload';
 
   /// Upload gambar dari File path
@@ -13,7 +14,7 @@ class ImgBBService {
     try {
       final bytes = await imageFile.readAsBytes();
       final base64Image = base64Encode(bytes);
-      
+
       return await _uploadToImgBB(base64Image);
     } catch (e) {
       print('Error uploading image from file: $e');
@@ -47,9 +48,7 @@ class ImgBBService {
     try {
       final response = await http.post(
         Uri.parse(_baseUrl),
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
         body: {
           'key': _apiKey,
           'image': base64Image,
@@ -59,7 +58,7 @@ class ImgBBService {
 
       if (response.statusCode == 200) {
         final jsonResponse = json.decode(response.body);
-        
+
         if (jsonResponse['success']) {
           return jsonResponse['data']['url'];
         } else {
@@ -92,7 +91,7 @@ class ImgBBService {
   static bool isValidImageFile(File file) {
     final validExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'];
     final fileName = file.path.toLowerCase();
-    
+
     return validExtensions.any((ext) => fileName.endsWith(ext));
   }
 

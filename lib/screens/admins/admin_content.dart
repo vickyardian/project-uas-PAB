@@ -135,9 +135,9 @@ class AdminContent extends StatelessWidget {
                                   v == null || v.isEmpty ? 'Wajib diisi' : null,
                         ),
                         const SizedBox(height: 16),
-
                         FutureBuilder<List<Category>>(
-                          future: adminService.streamAllCategories().first,
+                          // --- PERUBAHAN DI SINI ---
+                          future: adminService.getAllCategoriesOnce(),
                           builder: (context, snapshot) {
                             if (snapshot.connectionState ==
                                 ConnectionState.waiting) {
@@ -177,7 +177,6 @@ class AdminContent extends StatelessWidget {
                           },
                         ),
                         const SizedBox(height: 16),
-
                         Row(
                           children: [
                             ElevatedButton(
