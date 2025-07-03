@@ -1,11 +1,8 @@
 // lib/view_models/add_edit_product_viewmodel.dart
-
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
-// Impor model dan service yang relevan
 import '../models/product.dart';
 import '../models/category.dart';
 import '../services/cloudinary_service.dart';

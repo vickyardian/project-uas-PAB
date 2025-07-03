@@ -1,16 +1,19 @@
 // lib/services/admin_firestore_service.dart
 
 import 'package:cloud_firestore/cloud_firestore.dart' hide Order;
+import 'package:image_picker/image_picker.dart';
 import 'package:roti_nyaman/models/user.dart';
 import 'package:roti_nyaman/models/category.dart';
 import 'package:roti_nyaman/models/product.dart';
 import 'package:roti_nyaman/models/order.dart';
-import 'package:roti_nyaman/services/imgbb_service.dart';
 import 'dart:io';
 import 'dart:typed_data';
+import 'package:roti_nyaman/services/cloudinary_service.dart';
 
 class AdminFirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+  // Inisialisasi CloudinaryService
+  final CloudinaryService _cloudinaryService = CloudinaryService();
 
   // ==================== USER MANAGEMENT ====================
 
@@ -57,25 +60,17 @@ class AdminFirestoreService {
     }
   }
 
-  /// Update user profile photo
+  /// Update user profile photo menggunakan Cloudinary
   Future<void> updateUserProfilePhoto(String userId, File imageFile) async {
     try {
-      // Validate image
-      if (!ImgBBService.isValidImageFile(imageFile)) {
-        throw Exception('Format gambar tidak didukung');
-      }
-
-      if (!await ImgBBService.isValidImageSize(imageFile)) {
-        throw Exception('Ukuran gambar terlalu besar (max 32MB)');
-      }
-
-      // Upload to ImgBB
-      final imageUrl = await ImgBBService.uploadImage(imageFile);
+      // PERBAIKAN: Menggunakan named argument 'imageFile'
+      final imageUrl = await _cloudinaryService.uploadImage(
+        imageFile: XFile(imageFile.path),
+      );
       if (imageUrl == null) {
-        throw Exception('Gagal mengupload gambar');
+        throw Exception('Gagal mengupload gambar ke Cloudinary');
       }
 
-      // Update user document
       await _db.collection('users').doc(userId).update({
         'profileImageUrl': imageUrl,
         'updatedAt': Timestamp.now(),
@@ -85,24 +80,20 @@ class AdminFirestoreService {
     }
   }
 
-  /// Update user profile photo from bytes (untuk web)
+  /// Update user profile photo from bytes (untuk web) menggunakan Cloudinary
   Future<void> updateUserProfilePhotoFromBytes(
     String userId,
     Uint8List imageBytes,
   ) async {
     try {
-      // Validate image size
-      if (!ImgBBService.isValidImageSizeFromBytes(imageBytes)) {
-        throw Exception('Ukuran gambar terlalu besar (max 32MB)');
-      }
-
-      // Upload to ImgBB
-      final imageUrl = await ImgBBService.uploadImageFromBytes(imageBytes);
+      // PERBAIKAN: Menggunakan fungsi uploadImage dengan named argument 'imageBytes'
+      final imageUrl = await _cloudinaryService.uploadImage(
+        imageBytes: imageBytes,
+      );
       if (imageUrl == null) {
-        throw Exception('Gagal mengupload gambar');
+        throw Exception('Gagal mengupload gambar ke Cloudinary');
       }
 
-      // Update user document
       await _db.collection('users').doc(userId).update({
         'profileImageUrl': imageUrl,
         'updatedAt': Timestamp.now(),
@@ -273,36 +264,24 @@ class AdminFirestoreService {
         });
   }
 
-  /// Add product dengan gambar
+  /// Add product dengan gambar ke Cloudinary
   Future<void> addProductWithImage(Product product, File? imageFile) async {
     try {
       String? imageUrl;
-
       if (imageFile != null) {
-        // Validate image
-        if (!ImgBBService.isValidImageFile(imageFile)) {
-          throw Exception('Format gambar tidak didukung');
-        }
-
-        if (!await ImgBBService.isValidImageSize(imageFile)) {
-          throw Exception('Ukuran gambar terlalu besar (max 32MB)');
-        }
-
-        // Upload to ImgBB
-        imageUrl = await ImgBBService.uploadImage(imageFile);
+        // PERBAIKAN: Konversi File ke XFile sebelum dikirim
+        imageUrl = await _cloudinaryService.uploadImage(
+          imageFile: XFile(imageFile.path),
+        );
         if (imageUrl == null) {
-          throw Exception('Gagal mengupload gambar produk');
+          throw Exception('Gagal mengupload gambar produk ke Cloudinary');
         }
       }
 
-      // Create product data
-      final productData = {
-        ...product.toFirestore(),
-        'createdAt': Timestamp.now(),
-      };
-
+      final productData = product.toFirestore();
+      productData['createdAt'] = Timestamp.now();
       if (imageUrl != null) {
-        productData['imageUrl'] = imageUrl;
+        productData['productImage'] = imageUrl;
       }
 
       await _db.collection('products').doc(product.id).set(productData);
@@ -311,35 +290,25 @@ class AdminFirestoreService {
     }
   }
 
-  /// Add product dengan gambar dari bytes (untuk web)
+  /// Add product dengan gambar dari bytes (untuk web) ke Cloudinary
   Future<void> addProductWithImageBytes(
     Product product,
     Uint8List? imageBytes,
   ) async {
     try {
       String? imageUrl;
-
       if (imageBytes != null) {
-        // Validate image size
-        if (!ImgBBService.isValidImageSizeFromBytes(imageBytes)) {
-          throw Exception('Ukuran gambar terlalu besar (max 32MB)');
-        }
-
-        // Upload to ImgBB
-        imageUrl = await ImgBBService.uploadImageFromBytes(imageBytes);
+        // Kode ini sudah benar
+        imageUrl = await _cloudinaryService.uploadImage(imageBytes: imageBytes);
         if (imageUrl == null) {
-          throw Exception('Gagal mengupload gambar produk');
+          throw Exception('Gagal mengupload gambar produk ke Cloudinary');
         }
       }
 
-      // Create product data
-      final productData = {
-        ...product.toFirestore(),
-        'createdAt': Timestamp.now(),
-      };
-
+      final productData = product.toFirestore();
+      productData['createdAt'] = Timestamp.now();
       if (imageUrl != null) {
-        productData['imageUrl'] = imageUrl;
+        productData['productImage'] = imageUrl;
       }
 
       await _db.collection('products').doc(product.id).set(productData);
@@ -348,18 +317,7 @@ class AdminFirestoreService {
     }
   }
 
-  Future<void> addProduct(Product product) async {
-    try {
-      await _db.collection('products').doc(product.id).set({
-        ...product.toFirestore(),
-        'createdAt': Timestamp.now(),
-      });
-    } catch (e) {
-      throw Exception('Gagal menambah produk: $e');
-    }
-  }
-
-  /// Update product dengan gambar baru
+  /// Update product dengan gambar baru ke Cloudinary
   Future<void> updateProductWithImage(
     String productId,
     Map<String, dynamic> updates,
@@ -367,22 +325,14 @@ class AdminFirestoreService {
   ) async {
     try {
       if (newImageFile != null) {
-        // Validate image
-        if (!ImgBBService.isValidImageFile(newImageFile)) {
-          throw Exception('Format gambar tidak didukung');
-        }
-
-        if (!await ImgBBService.isValidImageSize(newImageFile)) {
-          throw Exception('Ukuran gambar terlalu besar (max 32MB)');
-        }
-
-        // Upload new image to ImgBB
-        final imageUrl = await ImgBBService.uploadImage(newImageFile);
+        // PERBAIKAN: Konversi File ke XFile sebelum dikirim
+        final imageUrl = await _cloudinaryService.uploadImage(
+          imageFile: XFile(newImageFile.path),
+        );
         if (imageUrl == null) {
-          throw Exception('Gagal mengupload gambar produk');
+          throw Exception('Gagal mengupload gambar produk ke Cloudinary');
         }
-
-        updates['imageUrl'] = imageUrl;
+        updates['productImage'] = imageUrl;
       }
 
       updates['updatedAt'] = Timestamp.now();
@@ -392,7 +342,7 @@ class AdminFirestoreService {
     }
   }
 
-  /// Update product dengan gambar dari bytes (untuk web)
+  /// Update product dengan gambar dari bytes (untuk web) ke Cloudinary
   Future<void> updateProductWithImageBytes(
     String productId,
     Map<String, dynamic> updates,
@@ -400,18 +350,14 @@ class AdminFirestoreService {
   ) async {
     try {
       if (newImageBytes != null) {
-        // Validate image size
-        if (!ImgBBService.isValidImageSizeFromBytes(newImageBytes)) {
-          throw Exception('Ukuran gambar terlalu besar (max 32MB)');
-        }
-
-        // Upload new image to ImgBB
-        final imageUrl = await ImgBBService.uploadImageFromBytes(newImageBytes);
+        // Kode ini sudah benar
+        final imageUrl = await _cloudinaryService.uploadImage(
+          imageBytes: newImageBytes,
+        );
         if (imageUrl == null) {
-          throw Exception('Gagal mengupload gambar produk');
+          throw Exception('Gagal mengupload gambar produk ke Cloudinary');
         }
-
-        updates['imageUrl'] = imageUrl;
+        updates['productImage'] = imageUrl;
       }
 
       updates['updatedAt'] = Timestamp.now();
@@ -421,24 +367,14 @@ class AdminFirestoreService {
     }
   }
 
-  Future<void> updateProduct(
-    String productId,
-    Map<String, dynamic> updates,
-  ) async {
+  Future<void> deleteProduct(String productId, String? productImage) async {
     try {
-      updates['updatedAt'] = Timestamp.now();
-      await _db.collection('products').doc(productId).update(updates);
-    } catch (e) {
-      throw Exception('Gagal mengupdate produk: $e');
-    }
-  }
-
-  Future<void> deleteProduct(String productId, String? imageUrl) async {
-    try {
-      // Walaupun kita tidak bisa menghapus dari ImgBB via API gratis,
-      // parameter imageUrl disiapkan jika nanti ada service gambar yang berbeda.
-      // Cukup hapus dokumen dari Firestore.
       await _db.collection('products').doc(productId).delete();
+      if (productImage != null && productImage.isNotEmpty) {
+        await _cloudinaryService.deleteImage(productImage).catchError((e) {
+          print('Gagal menghapus gambar dari Cloudinary: $e');
+        });
+      }
       print("Produk dengan ID $productId berhasil dihapus.");
     } catch (e) {
       throw Exception('Gagal menghapus produk: $e');
