@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:roti_nyaman/models/cart.dart';
+import 'package:roti_nyaman/screens/pages/checkout_screen.dart';
 
 class CartScreen extends StatefulWidget {
   final List<Cart> cartItems;
@@ -281,7 +282,23 @@ class _CartScreenState extends State<CartScreen> {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
-                    // Logika checkout
+                    // Cek jika keranjang tidak kosong sebelum melanjutkan
+                    if (localCartItems.isNotEmpty) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder:
+                              (context) => CheckoutScreen(
+                                cartItems: localCartItems,
+                                productStock: widget.productStock,
+                              ),
+                        ),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Keranjang Anda kosong!')),
+                      );
+                    }
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue,
