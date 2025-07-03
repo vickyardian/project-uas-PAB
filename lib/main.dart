@@ -80,7 +80,7 @@ class AuthWrapper extends StatelessWidget {
               if (adminSnapshot.connectionState == ConnectionState.waiting) {
                 return const InitialLoadingScreen();
               }
-              
+
               if (adminSnapshot.data == true) {
                 return const AdminDashboardScreen();
               } else {
@@ -116,17 +116,19 @@ class _InitialLoadingScreenState extends State<InitialLoadingScreen> {
     try {
       // Inisialisasi data atau operasi startup lainnya jika diperlukan
       // Sementara kosong karena addSampleProduct belum tersedia
-      await Future.delayed(const Duration(milliseconds: 500)); // Simulasi loading
-      
+      await Future.delayed(
+        const Duration(milliseconds: 500),
+      ); // Simulasi loading
+
       // Gunakan debugPrint untuk menghindari warning
       debugPrint('App initialized successfully');
     } catch (e) {
       // Gunakan debugPrint untuk error logging
       debugPrint('Error initializing data: $e');
-      
+
       // Untuk production, bisa tambahkan error reporting
       // Misalnya: FirebaseCrashlytics.instance.recordError(e, stackTrace);
-      
+
       // Handle error sesuai kebutuhan
       if (mounted) {
         // Tampilkan error message atau redirect ke error screen jika perlu
@@ -146,9 +148,9 @@ class _InitialLoadingScreenState extends State<InitialLoadingScreen> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Color(0xFFFFF3E0), // Light orange
-              Color(0xFFFFE0B2), // Medium orange
-              Color(0xFFFFCC80), // Darker orange
+              Color(0xFFFFF3E0), // Light blue
+              Color(0xFFFFE0B2), // Medium blue
+              Color(0xFFFFCC80), // Darker blue
             ],
           ),
         ),
@@ -161,11 +163,11 @@ class _InitialLoadingScreenState extends State<InitialLoadingScreen> {
                 width: 100,
                 height: 100,
                 decoration: BoxDecoration(
-                  color: Colors.orange.shade100,
+                  color: Colors.blue.shade100,
                   borderRadius: BorderRadius.circular(20),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.orange.shade300.withOpacity(0.5),
+                      color: Colors.blue.shade300.withOpacity(0.5),
                       blurRadius: 20,
                       spreadRadius: 5,
                     ),
@@ -174,7 +176,7 @@ class _InitialLoadingScreenState extends State<InitialLoadingScreen> {
                 child: Icon(
                   Icons.bakery_dining,
                   size: 60,
-                  color: Colors.orange.shade700,
+                  color: Colors.blue.shade700,
                 ),
               ),
               const SizedBox(height: 24),
@@ -183,7 +185,7 @@ class _InitialLoadingScreenState extends State<InitialLoadingScreen> {
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
-                  color: Colors.orange.shade800,
+                  color: Colors.blue.shade800,
                 ),
               ),
               const SizedBox(height: 32),
@@ -192,16 +194,15 @@ class _InitialLoadingScreenState extends State<InitialLoadingScreen> {
                 height: 24,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.orange.shade700),
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    Colors.blue.shade700,
+                  ),
                 ),
               ),
               const SizedBox(height: 16),
               Text(
                 'Menyiapkan aplikasi...',
-                style: TextStyle(
-                  color: Colors.orange.shade700,
-                  fontSize: 14,
-                ),
+                style: TextStyle(color: Colors.blue.shade700, fontSize: 14),
               ),
             ],
           ),

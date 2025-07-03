@@ -91,7 +91,7 @@ class ProductCard extends StatelessWidget {
                                 ? () => onAddToCart(product)
                                 : null,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.orange,
+                          backgroundColor: Colors.blue,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(horizontal: 8),
                           shape: RoundedRectangleBorder(

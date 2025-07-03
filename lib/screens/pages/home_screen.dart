@@ -205,7 +205,7 @@ class _HomeScreenState extends State<HomeScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('${product.name} ditambahkan ke keranjang'),
-        backgroundColor: isGuest ? Colors.orange : Colors.green,
+        backgroundColor: isGuest ? Colors.blue : Colors.green,
         duration: const Duration(seconds: 2),
         action: SnackBarAction(
           label: 'Lihat Keranjang',
@@ -361,7 +361,7 @@ class _HomeScreenState extends State<HomeScreen> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
-        selectedItemColor: widget.isGuest ? Colors.orange : Colors.blue,
+        selectedItemColor: widget.isGuest ? Colors.blue : Colors.blue,
         unselectedItemColor: Colors.grey,
         type: BottomNavigationBarType.fixed,
         items: [

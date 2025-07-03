@@ -30,7 +30,7 @@ class SplashConstants {
 }
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({Key? key}) : super(key: key);
+  const SplashScreen({super.key});
 
   @override
   State<SplashScreen> createState() => _SplashScreenState();
@@ -197,9 +197,9 @@ class _SplashScreenState extends State<SplashScreen>
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              Color(0xFFFFF3E0), // Light orange
-              Color(0xFFFFE0B2), // Medium orange
-              Color(0xFFFFCC80), // Darker orange
+              Color.fromARGB(255, 22, 185, 255), // Light blue
+              Color.fromARGB(255, 9, 214, 255), // Medium blue
+              Color.fromARGB(255, 0, 136, 255), // Darker blue
             ],
             stops: [0.0, 0.5, 1.0],
           ),
@@ -264,13 +264,13 @@ class _SplashScreenState extends State<SplashScreen>
             height: 24,
             child: CircularProgressIndicator(
               strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.orange.shade700),
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.blue.shade700),
             ),
           ),
           const SizedBox(height: 12),
           Text(
             'Memeriksa status login...',
-            style: TextStyle(color: Colors.orange.shade800, fontSize: 14),
+            style: TextStyle(color: Colors.blue.shade800, fontSize: 14),
           ),
         ],
       ),
@@ -356,9 +356,9 @@ class _SplashScreenState extends State<SplashScreen>
 
   Color _getBackgroundElementColor(int index, {bool shadow = false}) {
     final colors = [
-      Colors.orange.shade300,
-      Colors.orange.shade400,
-      Colors.orange.shade600,
+      Colors.blue.shade300,
+      Colors.blue.shade400,
+      Colors.blue.shade600,
       Colors.brown.shade300,
     ];
 
@@ -382,8 +382,8 @@ class _SplashScreenState extends State<SplashScreen>
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    Colors.orange.shade200.withOpacity(0.3),
-                    Colors.orange.shade100.withOpacity(0.2),
+                    Colors.blue.shade200.withOpacity(0.3),
+                    Colors.blue.shade100.withOpacity(0.2),
                     Colors.transparent,
                   ],
                 ),
@@ -393,11 +393,11 @@ class _SplashScreenState extends State<SplashScreen>
                   width: isTablet ? size.width * 0.4 : size.width * 0.5,
                   height: isTablet ? size.width * 0.4 : size.width * 0.5,
                   decoration: BoxDecoration(
-                    color: Colors.orange.shade100,
+                    color: Colors.blue.shade100,
                     borderRadius: BorderRadius.circular(60),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.orange.shade300.withOpacity(0.5),
+                        color: Colors.blue.shade300.withOpacity(0.5),
                         blurRadius: 20,
                         spreadRadius: 5,
                       ),
@@ -406,7 +406,7 @@ class _SplashScreenState extends State<SplashScreen>
                   child: Icon(
                     Icons.bakery_dining,
                     size: isTablet ? 80 : 60,
-                    color: Colors.orange.shade700,
+                    color: Colors.blue.shade700,
                   ),
                 ),
               ),
@@ -429,7 +429,7 @@ class _SplashScreenState extends State<SplashScreen>
               left: size.width * 0.08,
               child: _buildFloatingIcon(
                 Icons.cake,
-                Colors.orange.shade400,
+                Colors.blue.shade400,
                 isTablet ? 14 : 10,
                 _animationController.value * 2,
               ),
@@ -450,7 +450,7 @@ class _SplashScreenState extends State<SplashScreen>
               right: size.width * 0.12,
               child: _buildFloatingIcon(
                 Icons.local_dining,
-                Colors.orange.shade500,
+                Colors.blue.shade500,
                 isTablet ? 16 : 12,
                 _animationController.value * 1.8,
               ),
@@ -483,8 +483,8 @@ class _SplashScreenState extends State<SplashScreen>
           end: Alignment.bottomCenter,
           colors: [
             Colors.transparent,
-            Colors.orange.shade50.withOpacity(0.8),
-            Colors.orange.shade50,
+            Colors.blue.shade50.withOpacity(0.8),
+            Colors.blue.shade50,
           ],
         ),
       ),
@@ -524,14 +524,14 @@ class _SplashScreenState extends State<SplashScreen>
               TextSpan(
                 text: 'Selamat datang di\n',
                 style: TextStyle(
-                  color: Colors.orange.shade800,
+                  color: Colors.blue.shade800,
                   fontWeight: FontWeight.w300,
                 ),
               ),
               TextSpan(
                 text: 'Roti ',
                 style: TextStyle(
-                  color: Colors.orange.shade700,
+                  color: Colors.blue.shade700,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -549,7 +549,7 @@ class _SplashScreenState extends State<SplashScreen>
         Text(
           'roti segar dan lezat\nsiap diantar ke rumah',
           style: TextStyle(
-            color: Colors.orange.shade700,
+            color: Colors.blue.shade700,
             fontSize: isTablet ? 28 : 20,
             fontWeight: FontWeight.w300,
             height: 1.2,
@@ -561,10 +561,10 @@ class _SplashScreenState extends State<SplashScreen>
           decoration: BoxDecoration(
             color: Colors.white.withOpacity(0.8),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.orange.shade200, width: 1),
+            border: Border.all(color: Colors.blue.shade200, width: 1),
             boxShadow: [
               BoxShadow(
-                color: Colors.orange.shade100.withOpacity(0.5),
+                color: Colors.blue.shade100.withOpacity(0.5),
                 blurRadius: 10,
                 spreadRadius: 2,
               ),
@@ -573,7 +573,7 @@ class _SplashScreenState extends State<SplashScreen>
           child: Text(
             'Nikmati kelezatan roti segar yang dibuat dengan cinta dan bahan berkualitas terbaik, siap menghangatkan hari Anda.',
             style: TextStyle(
-              color: Colors.orange.shade700,
+              color: Colors.blue.shade700,
               fontSize: isTablet ? 18 : 16,
               height: 1.5,
             ),
@@ -613,11 +613,11 @@ class _SplashScreenState extends State<SplashScreen>
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
           gradient: LinearGradient(
-            colors: [Colors.orange.shade600, Colors.orange.shade500],
+            colors: [Colors.blue.shade600, Colors.blue.shade500],
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.orange.shade300.withOpacity(0.5),
+              color: Colors.blue.shade300.withOpacity(0.5),
               blurRadius: 15,
               offset: const Offset(0, 8),
             ),
@@ -653,10 +653,10 @@ class _SplashScreenState extends State<SplashScreen>
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.orange.shade600, width: 2),
+          border: Border.all(color: Colors.blue.shade600, width: 2),
           boxShadow: [
             BoxShadow(
-              color: Colors.orange.shade100.withOpacity(0.3),
+              color: Colors.blue.shade100.withOpacity(0.3),
               blurRadius: 10,
               offset: const Offset(0, 5),
             ),
@@ -675,7 +675,7 @@ class _SplashScreenState extends State<SplashScreen>
           child: Text(
             'Masuk sebagai Tamu',
             style: TextStyle(
-              color: Colors.orange.shade600,
+              color: Colors.blue.shade600,
               fontSize: 16,
               fontWeight: FontWeight.w600,
             ),
