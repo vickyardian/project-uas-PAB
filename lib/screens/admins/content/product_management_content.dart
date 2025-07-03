@@ -16,7 +16,7 @@ class ProductManagementContent extends StatelessWidget {
           false, // User tidak bisa menutup dialog dengan klik di luar
       builder:
           (_) => ChangeNotifierProvider(
-            create: (_) => AddEditProductViewModel(adminService),
+            create: (_) => AddEditProductViewModel(),
             child: const AddEditProductDialog(),
           ),
     );

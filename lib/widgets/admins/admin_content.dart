@@ -168,7 +168,7 @@ class _AdminContentState extends State<AdminContent> {
       barrierDismissible: false,
       builder: (BuildContext dialogContext) {
         return ChangeNotifierProvider(
-          create: (_) => AddEditProductViewModel(widget.adminService),
+          create: (_) => AddEditProductViewModel(),
           child: const AddEditProductDialog(),
         );
       },

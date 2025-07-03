@@ -22,18 +22,15 @@ class ProductCard extends StatelessWidget {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => ProductDetailScreen(
-              product: product,
-              isGuest: isGuest,
-            ),
+            builder:
+                (context) =>
+                    ProductDetailScreen(product: product, isGuest: isGuest),
           ),
         );
       },
       child: Card(
         elevation: 2,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -41,18 +38,23 @@ class ProductCard extends StatelessWidget {
             Expanded(
               flex: 3,
               child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                child: product.image != null
-                    ? Image.network(
-                        product.image!,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => _buildPlaceholder(),
-                      )
-                    : _buildPlaceholder(),
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(12),
+                ),
+                child:
+                    product.imageUrl != null
+                        ? Image.network(
+                          product.imageUrl!,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          errorBuilder:
+                              (context, error, stackTrace) =>
+                                  _buildPlaceholder(),
+                        )
+                        : _buildPlaceholder(),
               ),
             ),
-            
+
             // Product Details
             Expanded(
               flex: 2,
@@ -84,7 +86,10 @@ class ProductCard extends StatelessWidget {
                       width: double.infinity,
                       height: 28,
                       child: ElevatedButton(
-                        onPressed: product.stock > 0 ? () => onAddToCart(product) : null,
+                        onPressed:
+                            product.stock > 0
+                                ? () => onAddToCart(product)
+                                : null,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.orange,
                           foregroundColor: Colors.white,
@@ -113,11 +118,7 @@ class ProductCard extends StatelessWidget {
     return Container(
       width: double.infinity,
       color: Colors.grey[300],
-      child: const Icon(
-        Icons.image,
-        size: 40,
-        color: Colors.grey,
-      ),
+      child: const Icon(Icons.image, size: 40, color: Colors.grey),
     );
   }
 }
