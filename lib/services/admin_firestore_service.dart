@@ -433,9 +433,13 @@ class AdminFirestoreService {
     }
   }
 
-  Future<void> deleteProduct(String productId) async {
+  Future<void> deleteProduct(String productId, String? imageUrl) async {
     try {
+      // Walaupun kita tidak bisa menghapus dari ImgBB via API gratis,
+      // parameter imageUrl disiapkan jika nanti ada service gambar yang berbeda.
+      // Cukup hapus dokumen dari Firestore.
       await _db.collection('products').doc(productId).delete();
+      print("Produk dengan ID $productId berhasil dihapus.");
     } catch (e) {
       throw Exception('Gagal menghapus produk: $e');
     }
@@ -746,4 +750,6 @@ class AdminFirestoreService {
       throw Exception('Gagal mencari produk: $e');
     }
   }
+
+  getAllProductsStream() {}
 }

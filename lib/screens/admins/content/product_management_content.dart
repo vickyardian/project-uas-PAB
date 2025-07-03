@@ -2,7 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:roti_nyaman/services/admin_firestore_service.dart';
-import 'package:roti_nyaman/viewmodels/add_edit_product_viewmodel.dart';
+import 'package:roti_nyaman/view_models/add_edit_product_viewmodel.dart';
 import 'package:roti_nyaman/screens/admins/dialogs/add_edit_product_dialog.dart';
 
 class ProductManagementContent extends StatelessWidget {

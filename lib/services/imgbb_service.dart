@@ -6,7 +6,7 @@ import 'dart:typed_data';
 
 class ImgBBService {
   static const String _apiKey =
-      'https://ibb.co/gL9ZG09z'; // Ganti dengan API key ImgBB Anda
+      '76a106663c03cbfa729a2213e5bcdae7'; // Ganti dengan API key ImgBB Anda
   static const String _baseUrl = 'https://api.imgbb.com/1/upload';
 
   /// Upload gambar dari File path

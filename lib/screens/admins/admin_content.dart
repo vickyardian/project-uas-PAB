@@ -1,278 +1,161 @@
-// lib/widgets/admins/admin_content.dart
-
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:roti_nyaman/models/category.dart';
+import 'package:provider/provider.dart';
 import 'package:roti_nyaman/models/product.dart';
 import 'package:roti_nyaman/services/admin_firestore_service.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:roti_nyaman/view_models/add_edit_product_viewmodel.dart';
+import 'package:roti_nyaman/screens/admins/dialogs/add_edit_product_dialog.dart';
 
-class AdminContent extends StatelessWidget {
-  final int selectedIndex;
-  final AdminFirestoreService adminService;
-
-  const AdminContent({
-    super.key,
-    required this.selectedIndex,
-    required this.adminService,
-  });
+class AdminContent extends StatefulWidget {
+  const AdminContent({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    switch (selectedIndex) {
-      case 0:
-        return const Center(child: Text('Konten Dashboard'));
-      case 1:
-        // Saat menu "Produk" dipilih, kita panggil method untuk membangun UI-nya
-        return _buildProductManagement(context);
-      case 2:
-        return const Center(child: Text('Konten Manajemen Kategori'));
-      case 3:
-        return const Center(child: Text('Konten Manajemen Pesanan'));
-      case 4:
-        return const Center(child: Text('Konten Manajemen User'));
-      case 5:
-        return const Center(child: Text('Konten Laporan & Analytics'));
-      default:
-        return const Center(child: Text('Pilih salah satu menu'));
-    }
-  }
+  State<AdminContent> createState() => _AdminContentState();
+}
 
-  // Method untuk membangun UI Manajemen Produk
-  Widget _buildProductManagement(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: Text(
-          'Daftar produk akan muncul di sini.\nGunakan tombol + di pojok kanan bawah.',
-          textAlign: TextAlign.center,
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddProductDialog(context, adminService),
-        tooltip: 'Tambah Produk',
-        backgroundColor: Colors.orange.shade700,
-        child: const Icon(Icons.add),
-      ),
-    );
-  }
+class _AdminContentState extends State<AdminContent> {
+  final AdminFirestoreService _adminService = AdminFirestoreService();
 
-  // Method untuk menampilkan dialog form tambah produk yang BENAR dan FUNGSIONAL
-  void _showAddProductDialog(
-    BuildContext context,
-    AdminFirestoreService adminService,
-  ) {
-    final formKey = GlobalKey<FormState>();
-    final nameController = TextEditingController();
-    final descriptionController = TextEditingController();
-    final priceController = TextEditingController();
-    final stockController = TextEditingController();
-
-    String? selectedCategoryId;
-    Uint8List? imageBytes;
+  void _showAddProductDialog() {
+    // Pesan ini akan muncul di Debug Console saat tombol ditekan
+    print("DEBUG: Tombol Tambah Produk diklik. Mempersiapkan dialog...");
 
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            return AlertDialog(
-              title: const Text('Tambah Produk Baru'),
-              content: SizedBox(
-                width: 500,
-                child: SingleChildScrollView(
-                  child: Form(
-                    key: formKey,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        TextFormField(
-                          controller: nameController,
-                          decoration: const InputDecoration(
-                            labelText: 'Nama Produk',
-                            border: OutlineInputBorder(),
-                          ),
-                          validator:
-                              (v) =>
-                                  v == null || v.isEmpty ? 'Wajib diisi' : null,
-                        ),
-                        const SizedBox(height: 16),
-                        TextFormField(
-                          controller: descriptionController,
-                          decoration: const InputDecoration(
-                            labelText: 'Deskripsi',
-                            border: OutlineInputBorder(),
-                          ),
-                          maxLines: 3,
-                          validator:
-                              (v) =>
-                                  v == null || v.isEmpty ? 'Wajib diisi' : null,
-                        ),
-                        const SizedBox(height: 16),
-                        TextFormField(
-                          controller: priceController,
-                          decoration: const InputDecoration(
-                            labelText: 'Harga',
-                            prefixText: 'Rp ',
-                            border: OutlineInputBorder(),
-                          ),
-                          keyboardType: TextInputType.number,
-                          validator:
-                              (v) =>
-                                  v == null || v.isEmpty ? 'Wajib diisi' : null,
-                        ),
-                        const SizedBox(height: 16),
-                        TextFormField(
-                          controller: stockController,
-                          decoration: const InputDecoration(
-                            labelText: 'Stok Awal',
-                            border: OutlineInputBorder(),
-                          ),
-                          keyboardType: TextInputType.number,
-                          validator:
-                              (v) =>
-                                  v == null || v.isEmpty ? 'Wajib diisi' : null,
-                        ),
-                        const SizedBox(height: 16),
-                        FutureBuilder<List<Category>>(
-                          // --- PERUBAHAN DI SINI ---
-                          future: adminService.getAllCategoriesOnce(),
-                          builder: (context, snapshot) {
-                            if (snapshot.connectionState ==
-                                ConnectionState.waiting) {
-                              return const Center(
-                                child: CircularProgressIndicator(),
-                              );
-                            }
-                            if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                              return const Text(
-                                'Error: Tidak ada kategori ditemukan.',
-                              );
-                            }
-                            final categories = snapshot.data!;
-                            return DropdownButtonFormField<String>(
-                              decoration: const InputDecoration(
-                                labelText: 'Kategori',
-                                border: OutlineInputBorder(),
-                              ),
-                              value: selectedCategoryId,
-                              hint: const Text('Pilih Kategori'),
-                              items:
-                                  categories.map((cat) {
-                                    return DropdownMenuItem(
-                                      value: cat.id,
-                                      child: Text(cat.name),
-                                    );
-                                  }).toList(),
-                              onChanged: (value) {
-                                setState(() {
-                                  selectedCategoryId = value;
-                                });
-                              },
-                              validator:
-                                  (v) =>
-                                      v == null ? 'Wajib pilih kategori' : null,
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            ElevatedButton(
-                              onPressed: () async {
-                                final picker = ImagePicker();
-                                final file = await picker.pickImage(
-                                  source: ImageSource.gallery,
-                                  imageQuality: 80,
-                                );
-                                if (file != null) {
-                                  final bytes = await file.readAsBytes();
-                                  setState(() {
-                                    imageBytes = bytes;
-                                  });
-                                }
-                              },
-                              child: const Text('Pilih Gambar'),
-                            ),
-                            const SizedBox(width: 16),
-                            if (imageBytes != null)
-                              Image.memory(
-                                imageBytes!,
-                                width: 60,
-                                height: 60,
-                                fit: BoxFit.cover,
-                              )
-                            else
-                              Container(
-                                width: 60,
-                                height: 60,
-                                color: Colors.grey.shade200,
-                                child: const Icon(
-                                  Icons.image,
-                                  color: Colors.grey,
-                                ),
-                              ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: const Text('Batal'),
-                ),
-                ElevatedButton(
-                  onPressed: () async {
-                    if (formKey.currentState!.validate()) {
-                      try {
-                        final newProductId =
-                            FirebaseFirestore.instance
-                                .collection('products')
-                                .doc()
-                                .id;
-                        final newProduct = Product(
-                          id: newProductId,
-                          name: nameController.text,
-                          description: descriptionController.text,
-                          price: double.parse(priceController.text),
-                          stock: int.parse(stockController.text),
-                          categoryId: selectedCategoryId!,
-                          createdAt: DateTime.now(),
-                        );
-
-                        await adminService.addProductWithImageBytes(
-                          newProduct,
-                          imageBytes,
-                        );
-
-                        Navigator.of(dialogContext).pop();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Produk berhasil disimpan!'),
-                            backgroundColor: Colors.green,
-                          ),
-                        );
-                      } catch (e) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Gagal menyimpan: $e'),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                      }
-                    }
-                  },
-                  child: const Text('Simpan'),
-                ),
-              ],
-            );
-          },
+        return ChangeNotifierProvider(
+          create: (_) => AddEditProductViewModel(_adminService),
+          child: const AddEditProductDialog(),
         );
       },
+    );
+  }
+
+  void _showDeleteConfirmationDialog(Product product) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Hapus Produk'),
+          content: Text('Anda yakin ingin menghapus produk "${product.name}"?'),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Batal'),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            TextButton(
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              child: const Text('Hapus'),
+              onPressed: () async {
+                try {
+                  await _adminService.deleteProduct(
+                    product.id,
+                    product.imageUrl,
+                  );
+                  Navigator.of(context).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Produk berhasil dihapus.'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                } catch (e) {
+                  Navigator.of(context).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Gagal menghapus produk: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text("Manajemen Produk"), centerTitle: true),
+      body: StreamBuilder<List<Product>>(
+        stream: _adminService.getAllProductsStream(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(child: Text('Terjadi error: ${snapshot.error}'));
+          }
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return const Center(child: Text('Belum ada produk.'));
+          }
+          final products = snapshot.data!;
+          return ListView.builder(
+            padding: const EdgeInsets.all(16.0),
+            itemCount: products.length,
+            itemBuilder: (context, index) {
+              final product = products[index];
+              return Card(
+                margin: const EdgeInsets.only(bottom: 16),
+                child: Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Row(
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8.0),
+                        child:
+                            product.imageUrl != null &&
+                                    product.imageUrl!.isNotEmpty
+                                ? Image.network(
+                                  product.imageUrl!,
+                                  width: 80,
+                                  height: 80,
+                                  fit: BoxFit.cover,
+                                )
+                                : Container(
+                                  width: 80,
+                                  height: 80,
+                                  color: Colors.grey.shade200,
+                                  child: const Icon(Icons.image_not_supported),
+                                ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              product.name,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text('Rp ${product.price.toStringAsFixed(0)}'),
+                            Text('Stok: ${product.stock}'),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.delete, color: Colors.red.shade700),
+                        onPressed: () => _showDeleteConfirmationDialog(product),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _showAddProductDialog,
+        icon: const Icon(Icons.add),
+        label: const Text("Tambah Produk"),
+      ),
     );
   }
 }

@@ -1,111 +1,140 @@
-// lib/widgets/admins/dialogs/add_edit_product_dialog.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:roti_nyaman/viewmodels/add_edit_product_viewmodel.dart';
+import 'package:roti_nyaman/models/category.dart';
+import 'package:roti_nyaman/view_models/add_edit_product_viewmodel.dart';
 
 class AddEditProductDialog extends StatelessWidget {
   const AddEditProductDialog({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final viewModel = context.watch<AddEditProductViewModel>();
+    // Pesan ini akan muncul di Debug Console saat UI form dibuat
+    print("DEBUG: Membangun UI AddEditProductDialog...");
+    final viewModel = Provider.of<AddEditProductViewModel>(
+      context,
+      listen: false,
+    );
 
     return AlertDialog(
       title: const Text('Tambah Produk Baru'),
       content: SizedBox(
-        width: 500, // Lebar dialog
+        width: 500,
         child: SingleChildScrollView(
           child: Form(
             key: viewModel.formKey,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Input Nama Produk
                 TextFormField(
                   controller: viewModel.nameController,
-                  decoration: const InputDecoration(labelText: 'Nama Produk'),
+                  decoration: const InputDecoration(
+                    labelText: 'Nama Produk',
+                    border: OutlineInputBorder(),
+                  ),
                   validator:
-                      (value) =>
-                          value == null || value.isEmpty ? 'Wajib diisi' : null,
+                      (v) => v == null || v.isEmpty ? 'Wajib diisi' : null,
                 ),
                 const SizedBox(height: 16),
-
-                // Input Deskripsi
                 TextFormField(
                   controller: viewModel.descriptionController,
-                  decoration: const InputDecoration(labelText: 'Deskripsi'),
+                  decoration: const InputDecoration(
+                    labelText: 'Deskripsi',
+                    border: OutlineInputBorder(),
+                  ),
                   maxLines: 3,
                   validator:
-                      (value) =>
-                          value == null || value.isEmpty ? 'Wajib diisi' : null,
+                      (v) => v == null || v.isEmpty ? 'Wajib diisi' : null,
                 ),
                 const SizedBox(height: 16),
-
-                // Input Harga
                 TextFormField(
                   controller: viewModel.priceController,
                   decoration: const InputDecoration(
                     labelText: 'Harga',
                     prefixText: 'Rp ',
+                    border: OutlineInputBorder(),
                   ),
                   keyboardType: TextInputType.number,
                   validator:
-                      (value) =>
-                          value == null || value.isEmpty ? 'Wajib diisi' : null,
+                      (v) => v == null || v.isEmpty ? 'Wajib diisi' : null,
                 ),
                 const SizedBox(height: 16),
-
-                // Input Stok
                 TextFormField(
                   controller: viewModel.stockController,
-                  decoration: const InputDecoration(labelText: 'Stok Awal'),
+                  decoration: const InputDecoration(
+                    labelText: 'Stok Awal',
+                    border: OutlineInputBorder(),
+                  ),
                   keyboardType: TextInputType.number,
                   validator:
-                      (value) =>
-                          value == null || value.isEmpty ? 'Wajib diisi' : null,
+                      (v) => v == null || v.isEmpty ? 'Wajib diisi' : null,
                 ),
                 const SizedBox(height: 16),
-
-                // Dropdown Kategori
-                if (viewModel.categories.isNotEmpty)
-                  DropdownButtonFormField<String>(
-                    value: viewModel.selectedCategoryId,
-                    hint: const Text('Pilih Kategori'),
-                    items:
-                        viewModel.categories.map((category) {
-                          return DropdownMenuItem(
-                            value: category.id,
-                            child: Text(category.name),
-                          );
-                        }).toList(),
-                    onChanged: (value) {
-                      viewModel.setSelectedCategory(value);
-                    },
-                    validator:
-                        (value) =>
-                            value == null ? 'Wajib pilih kategori' : null,
-                  ),
+                FutureBuilder<List<Category>>(
+                  future: viewModel.getCategories(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                      return const Text('Error: Kategori tidak ditemukan.');
+                    }
+                    final categories = snapshot.data!;
+                    return Consumer<AddEditProductViewModel>(
+                      builder:
+                          (
+                            context,
+                            vm,
+                            child,
+                          ) => DropdownButtonFormField<String>(
+                            decoration: const InputDecoration(
+                              labelText: 'Kategori',
+                              border: OutlineInputBorder(),
+                            ),
+                            value: vm.selectedCategoryId,
+                            hint: const Text('Pilih Kategori'),
+                            items:
+                                categories.map((cat) {
+                                  return DropdownMenuItem(
+                                    value: cat.id,
+                                    child: Text(cat.name),
+                                  );
+                                }).toList(),
+                            onChanged: (value) => vm.setSelectedCategory(value),
+                            validator:
+                                (v) =>
+                                    v == null ? 'Wajib pilih kategori' : null,
+                          ),
+                    );
+                  },
+                ),
                 const SizedBox(height: 16),
-
-                // Pilih Gambar
-                Row(
-                  children: [
-                    ElevatedButton.icon(
-                      onPressed: viewModel.pickImage,
-                      icon: const Icon(Icons.image),
-                      label: const Text('Pilih Gambar'),
-                    ),
-                    const SizedBox(width: 16),
-                    if (viewModel.imageBytes != null)
-                      Image.memory(
-                        viewModel.imageBytes!,
-                        height: 60,
-                        width: 60,
-                        fit: BoxFit.cover,
-                      )
-                    else
-                      const Text('Belum ada gambar'),
-                  ],
+                Consumer<AddEditProductViewModel>(
+                  builder:
+                      (context, vm, child) => Row(
+                        children: [
+                          ElevatedButton(
+                            onPressed: vm.pickImage,
+                            child: const Text('Pilih Gambar'),
+                          ),
+                          const SizedBox(width: 16),
+                          vm.imageBytes != null
+                              ? Image.memory(
+                                vm.imageBytes!,
+                                width: 60,
+                                height: 60,
+                                fit: BoxFit.cover,
+                              )
+                              : Container(
+                                width: 60,
+                                height: 60,
+                                color: Colors.grey.shade200,
+                                child: const Icon(
+                                  Icons.image,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                        ],
+                      ),
                 ),
               ],
             ),
@@ -117,39 +146,45 @@ class AddEditProductDialog extends StatelessWidget {
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Batal'),
         ),
-        ElevatedButton(
-          onPressed:
-              viewModel.isLoading
-                  ? null
-                  : () async {
-                    bool success = await viewModel.saveProduct();
-                    if (success) {
-                      Navigator.of(context).pop();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Produk berhasil disimpan!'),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Gagal menyimpan. Periksa kembali semua isian.',
+        Consumer<AddEditProductViewModel>(
+          builder:
+              (context, vm, child) => ElevatedButton(
+                onPressed:
+                    vm.isLoading
+                        ? null
+                        : () async {
+                          try {
+                            await vm.saveProduct();
+                            Navigator.of(context).pop();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Produk berhasil disimpan!'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          } catch (e) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Gagal menyimpan: ${e.toString().replaceAll("Exception: ", "")}',
+                                ),
+                                backgroundColor: Colors.red,
+                              ),
+                            );
+                          }
+                        },
+                child:
+                    vm.isLoading
+                        ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 3,
                           ),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                  },
-          child:
-              viewModel.isLoading
-                  ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                  : const Text('Simpan'),
+                        )
+                        : const Text('Simpan'),
+              ),
         ),
       ],
     );
