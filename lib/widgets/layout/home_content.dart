@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:roti_nyaman/models/product.dart';
 import 'package:roti_nyaman/services/firestore_service.dart';
 import 'package:roti_nyaman/widgets/layout/product_card.dart';
+import 'package:carousel_slider/carousel_slider.dart';
 
 class HomeContent extends StatelessWidget {
   final bool isGuest;
@@ -18,6 +19,12 @@ class HomeContent extends StatelessWidget {
     required this.onAddToCart,
     required this.onCartPressed,
   });
+
+  final List<String> imgList = const [
+    'assets/carousel/carousel1.jpg',
+    'assets/carousel/carousel2.jpg',
+    'assets/carousel/carousel1.jpg',
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -49,10 +56,7 @@ class HomeContent extends StatelessWidget {
                   ),
                   Text(
                     isGuest ? 'MODE TAMU' : 'BAKERY SHOP',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Colors.white70,
-                    ),
+                    style: const TextStyle(fontSize: 12, color: Colors.white70),
                   ),
                 ],
               ),
@@ -61,38 +65,50 @@ class HomeContent extends StatelessWidget {
             ],
           ),
         ),
-        
+
         // Banner sederhana
-        Container(
-          height: 150,
-          margin: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.grey[300],
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: const Center(
-            child: Text(
-              'Promo Spesial Hari Ini!',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.black54,
-              ),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16.0),
+          child: CarouselSlider(
+            options: CarouselOptions(
+              height: 150.0,
+              autoPlay: true,
+              enlargeCenterPage: true,
+              aspectRatio: 16 / 9,
+              autoPlayCurve: Curves.fastOutSlowIn,
+              enableInfiniteScroll: true,
+              autoPlayAnimationDuration: const Duration(milliseconds: 800),
+              viewportFraction: 0.8,
             ),
+            items:
+                imgList
+                    .map(
+                      (item) => Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 5.0),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          image: DecorationImage(
+                            image: AssetImage(item),
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                      ),
+                    )
+                    .toList(),
           ),
         ),
-        
+
         // Products Section
-        Expanded(
+        Flexible(
           child: _buildProductsSection(),
-        ),
+        ), //mengganti Expanded dengan Flexible dapat mengatasi masalah layout yang rumit. Flexible lebih "lunak" dan tidak memaksa child untuk mengisi semua ruang yang tersedia.
       ],
     );
   }
 
   Widget _buildCartButton() {
     final user = FirebaseAuth.instance.currentUser;
-    
+
     if (isGuest || user == null) {
       return GestureDetector(
         onTap: onCartPressed,
@@ -113,7 +129,10 @@ class HomeContent extends StatelessWidget {
       builder: (context, snapshot) {
         int totalItems = 0;
         if (snapshot.hasData) {
-          totalItems = snapshot.data!.values.fold(0, (sum, quantity) => sum + quantity);
+          totalItems = snapshot.data!.values.fold(
+            0,
+            (sum, quantity) => sum + quantity,
+          );
         }
 
         return GestureDetector(
@@ -164,16 +183,10 @@ class HomeContent extends StatelessWidget {
             children: [
               Text(
                 'Produk Terbaru',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               Spacer(),
-              Text(
-                'Lihat Semua >',
-                style: TextStyle(color: Colors.blue),
-              ),
+              Text('Lihat Semua >', style: TextStyle(color: Colors.blue)),
             ],
           ),
         ),
@@ -185,7 +198,7 @@ class HomeContent extends StatelessWidget {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
               }
-              
+
               if (snapshot.hasError) {
                 return Center(
                   child: Column(
@@ -206,7 +219,7 @@ class HomeContent extends StatelessWidget {
                   ),
                 );
               }
-              
+
               if (!snapshot.hasData || snapshot.data!.isEmpty) {
                 return const Center(
                   child: Column(
@@ -216,10 +229,7 @@ class HomeContent extends StatelessWidget {
                       SizedBox(height: 16),
                       Text(
                         'Tidak ada produk tersedia',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey,
-                        ),
+                        style: TextStyle(fontSize: 16, color: Colors.grey),
                       ),
                     ],
                   ),

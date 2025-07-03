@@ -39,9 +39,16 @@ class Product {
       id: doc.id,
       name: data['name'] ?? '',
       description: data['description'] ?? '',
-      price: (data['price'] is String 
-          ? double.parse(data['price'].replaceAll('Rp ', '').replaceAll('.', '').replaceAll(',', '.'))
-          : (data['price'] ?? 0.0)).toDouble(),
+      price:
+          (data['price'] is String
+                  ? double.parse(
+                    data['price']
+                        .replaceAll('Rp ', '')
+                        .replaceAll('.', '')
+                        .replaceAll(',', '.'),
+                  )
+                  : (data['price'] ?? 0.0))
+              .toDouble(),
       categoryId: data['categoryId'] ?? '',
       stock: data['stock'] ?? 0,
       imageUrl: data['imageUrl'] ?? data['image'], // Support both field names
