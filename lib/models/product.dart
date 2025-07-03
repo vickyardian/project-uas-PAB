@@ -1,4 +1,3 @@
-//models/product.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class Product {
@@ -8,12 +7,12 @@ class Product {
   final double price;
   final String categoryId;
   final int stock;
-  final String? imageUrl; // Changed to match service usage (imageUrl)
+  final String? imageUrl;
   final bool isLiked;
   final bool isBestSeller;
   final bool isActive;
   final DateTime createdAt;
-  final DateTime? updatedAt; // Changed to optional for consistency
+  final DateTime? updatedAt;
 
   Product({
     required this.id,
@@ -22,7 +21,7 @@ class Product {
     required this.price,
     required this.categoryId,
     required this.stock,
-    this.imageUrl, // Changed to match service
+    this.imageUrl,
     this.isLiked = false,
     this.isBestSeller = false,
     this.isActive = true,
@@ -30,31 +29,51 @@ class Product {
     this.updatedAt,
   });
 
-  // Getter for backward compatibility
   String? get image => imageUrl;
 
+  // [PERBAIKAN UTAMA ADA DI SINI]
   factory Product.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+
+    // Fungsi bantu untuk mengubah berbagai tipe data menjadi boolean secara aman
+    bool boolFrom(dynamic value, {bool defaultValue = false}) {
+      if (value is bool) return value;
+      if (value is num)
+        return value != 0; // Angka 0 dianggap false, selain itu true
+      if (value is String) return value.toLowerCase() == 'true';
+      return defaultValue; // Nilai default jika tipe tidak dikenali atau null
+    }
+
+    // Fungsi bantu untuk mengubah harga menjadi double secara aman
+    double doubleFrom(dynamic value) {
+      if (value is double) return value;
+      if (value is int) return value.toDouble();
+      if (value is String) {
+        return double.tryParse(
+              value
+                  .replaceAll('Rp', '')
+                  .replaceAll('.', '')
+                  .replaceAll(',', '.'),
+            ) ??
+            0.0;
+      }
+      return 0.0;
+    }
+
     return Product(
       id: doc.id,
       name: data['name'] ?? '',
       description: data['description'] ?? '',
-      price:
-          (data['price'] is String
-                  ? double.parse(
-                    data['price']
-                        .replaceAll('Rp ', '')
-                        .replaceAll('.', '')
-                        .replaceAll(',', '.'),
-                  )
-                  : (data['price'] ?? 0.0))
-              .toDouble(),
+      price: doubleFrom(data['price']), // Menggunakan fungsi bantu
       categoryId: data['categoryId'] ?? '',
-      stock: data['stock'] ?? 0,
-      imageUrl: data['imageUrl'] ?? data['image'], // Support both field names
-      isLiked: data['isLiked'] ?? false,
-      isBestSeller: data['isBestSeller'] ?? false,
-      isActive: data['isActive'] ?? true,
+      stock: (data['stock'] ?? 0).toInt(),
+      imageUrl: data['imageUrl'] ?? data['image'],
+
+      // Menggunakan fungsi bantu untuk konversi boolean yang aman
+      isLiked: boolFrom(data['isLiked'], defaultValue: false),
+      isBestSeller: boolFrom(data['isBestSeller'], defaultValue: false),
+      isActive: boolFrom(data['isActive'], defaultValue: true),
+
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate(),
     );
@@ -67,7 +86,7 @@ class Product {
       'price': price,
       'categoryId': categoryId,
       'stock': stock,
-      'imageUrl': imageUrl, // Changed to match service
+      'imageUrl': imageUrl,
       'isLiked': isLiked,
       'isBestSeller': isBestSeller,
       'isActive': isActive,

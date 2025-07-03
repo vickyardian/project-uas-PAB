@@ -1,16 +1,15 @@
-//models/cart.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class Cart {
   final String id;
-  final String userId; // Added to link cart to specific user
+  final String userId;
   final String productId;
-  final String productName; // Changed from 'name' to match other models
-  final double productPrice; // Changed from 'price' to match other models
-  final String? productImage; // Changed from 'image' to match other models
+  final String productName;
+  final double productPrice;
+  final String? productImage;
   final int quantity;
-  final DateTime createdAt; // Changed from Timestamp to DateTime for consistency
-  final DateTime? updatedAt; // Changed from Timestamp to DateTime for consistency
+  final DateTime createdAt;
+  final DateTime? updatedAt;
 
   Cart({
     required this.id,
@@ -24,27 +23,38 @@ class Cart {
     this.updatedAt,
   });
 
-  // Getters for backward compatibility
-  String get name => productName;
-  double get price => productPrice;
-  String? get image => productImage;
-  DateTime get timestamp => updatedAt ?? createdAt;
-
-  // Calculate total price for this cart item
+  // Getter untuk menghitung subtotal per item
   double get totalPrice => productPrice * quantity;
 
+  // [PERBAIKAN UTAMA ADA DI SINI]
   factory Cart.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+    final data =
+        doc.data() as Map<String, dynamic>? ?? {}; // Lebih aman jika data null
+
+    // Fungsi bantu untuk konversi aman
+    double doubleFrom(dynamic value) {
+      if (value is double) return value;
+      if (value is int) return value.toDouble();
+      return 0.0;
+    }
+
+    int intFrom(dynamic value) {
+      if (value is int) return value;
+      if (value is double) return value.toInt();
+      return 0;
+    }
+
     return Cart(
       id: doc.id,
       userId: data['userId'] ?? '',
       productId: data['productId'] ?? '',
-      productName: data['productName'] ?? data['name'] ?? '', // Support both field names
-      productPrice: (data['productPrice'] ?? data['price'] is String 
-          ? double.parse((data['productPrice'] ?? data['price']).toString().replaceAll('Rp ', '').replaceAll('.', '').replaceAll(',', '.'))
-          : (data['productPrice'] ?? data['price'] ?? 0.0)).toDouble(),
-      productImage: data['productImage'] ?? data['image'], // Support both field names
-      quantity: data['quantity'] ?? 0,
+      productName: data['productName'] ?? '',
+
+      // Menggunakan fungsi bantu yang aman
+      productPrice: doubleFrom(data['productPrice']),
+      quantity: intFrom(data['quantity']),
+
+      productImage: data['productImage'],
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate(),
     );
@@ -54,15 +64,12 @@ class Cart {
     return {
       'userId': userId,
       'productId': productId,
-      'productName': productName, // Changed to match field name
-      'name': productName, // Keep for backward compatibility
-      'productPrice': productPrice, // Changed to match field name
-      'price': productPrice, // Keep for backward compatibility
-      'productImage': productImage, // Changed to match field name
-      'image': productImage, // Keep for backward compatibility
+      'productName': productName,
+      'productPrice': productPrice,
+      'productImage': productImage,
       'quantity': quantity,
       'createdAt': Timestamp.fromDate(createdAt),
-      if (updatedAt != null) 'updatedAt': Timestamp.fromDate(updatedAt!),
+      'updatedAt': updatedAt != null ? Timestamp.fromDate(updatedAt!) : null,
     };
   }
 

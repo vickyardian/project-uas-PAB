@@ -1,4 +1,3 @@
-//screens/pages/home_screen.dart
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:roti_nyaman/services/firestore_service.dart';
@@ -11,6 +10,7 @@ import 'package:roti_nyaman/widgets/users/guest_profile_page.dart';
 import 'package:roti_nyaman/widgets/users/guest_dialogs.dart';
 import 'package:roti_nyaman/models/product.dart';
 import 'package:roti_nyaman/models/cart.dart';
+import 'dart:async'; // Impor untuk StreamSubscription
 
 class HomeScreen extends StatefulWidget {
   final bool isGuest;
@@ -28,7 +28,11 @@ class _HomeScreenState extends State<HomeScreen> {
   final Map<String, int> _productStock = {}; // Track product stock
   final FirestoreService _firestoreService = FirestoreService();
   User? _currentUser;
-  bool _isLoadingCart = false;
+  bool _isLoadingCart =
+      true; // Set true di awal untuk loading state yang lebih baik
+
+  // [PERBAIKAN] Tambahkan StreamSubscription untuk mengelola listener
+  StreamSubscription<List<Cart>>? _cartSubscription;
 
   @override
   void initState() {
@@ -37,32 +41,49 @@ class _HomeScreenState extends State<HomeScreen> {
     _initializeCart();
   }
 
+  // [PERBAIKAN] Pastikan untuk membatalkan subscription saat widget tidak lagi digunakan
+  @override
+  void dispose() {
+    _cartSubscription?.cancel();
+    super.dispose();
+  }
+
   void _initializeCart() {
     if (!widget.isGuest && _currentUser != null) {
       _loadUserCart();
       _syncGuestCartOnLogin();
-    }
-  }
-
-  Future<void> _loadUserCart() async {
-    if (_currentUser == null) return;
-    
-    setState(() {
-      _isLoadingCart = true;
-    });
-
-    try {
-      // For now, start with empty cart and load as products are added
-      // This will be populated when products are added to cart
-      _userCartItems.clear();
-      setState(() {});
-    } catch (e) {
-      _showErrorSnackBar('Gagal memuat keranjang: $e');
-    } finally {
+    } else {
       setState(() {
         _isLoadingCart = false;
       });
     }
+  }
+
+  // [PERBAIKAN UTAMA] Mengubah _loadUserCart untuk mendengarkan perubahan dari Firestore
+  void _loadUserCart() {
+    if (_currentUser == null) {
+      setState(() => _isLoadingCart = false);
+      return;
+    }
+
+    _cartSubscription = _firestoreService
+        .streamUserCart(_currentUser!.uid)
+        .listen(
+          (cartItems) {
+            if (mounted) {
+              setState(() {
+                _userCartItems = cartItems;
+                _isLoadingCart = false;
+              });
+            }
+          },
+          onError: (error) {
+            if (mounted) {
+              _showErrorSnackBar('Gagal memuat keranjang: $error');
+              setState(() => _isLoadingCart = false);
+            }
+          },
+        );
   }
 
   List<Widget> get _pages {
@@ -71,22 +92,23 @@ class _HomeScreenState extends State<HomeScreen> {
         isGuest: widget.isGuest,
         cart: _getCartMap(),
         onAddToCart: _addToCart,
-        onCartPressed: widget.isGuest
-            ? () => GuestDialogs.showCartDialog(
+        onCartPressed:
+            widget.isGuest
+                ? () => GuestDialogs.showCartDialog(
                   context,
                   _getCartMap(),
                   _redirectToLogin,
                 )
-            : () => setState(() => _selectedIndex = 1),
+                : () => setState(() => _selectedIndex = 1),
       ),
       widget.isGuest
           ? GuestCartPage(onLoginPressed: _redirectToLogin)
           : CartScreen(
-              cartItems: _userCartItems,
-              onCartUpdated: _updateCartFromCartScreen,
-              userId: _currentUser?.uid ?? '',
-              productStock: _productStock,
-            ),
+            cartItems: _userCartItems,
+            onCartUpdated: _updateCartFromCartScreen,
+            userId: _currentUser?.uid ?? '',
+            productStock: _productStock,
+          ),
       widget.isGuest
           ? GuestProfilePage(onLoginPressed: _redirectToLogin)
           : const ProfileScreen(),
@@ -119,47 +141,23 @@ class _HomeScreenState extends State<HomeScreen> {
           // Update existing cart item
           final existingCart = _userCartItems[existingCartIndex];
           final newQuantity = existingCart.quantity + 1;
-          
+
           if (newQuantity > product.stock) {
             _showErrorSnackBar('Stok ${product.name} tidak mencukupi');
             return;
           }
 
-          // Use existing FirestoreService method
-          await _firestoreService.updateCartItem(
-            _currentUser!.uid, 
-            product, 
-            newQuantity
+          // [PERBAIKAN] Gunakan method yang lebih spesifik untuk update quantity
+          await _firestoreService.updateCartItemQuantity(
+            _currentUser!.uid,
+            existingCart.id,
+            newQuantity,
           );
-          
-          setState(() {
-            _userCartItems[existingCartIndex] = existingCart.copyWith(
-              quantity: newQuantity,
-              updatedAt: DateTime.now(),
-            );
-          });
         } else {
           // Add new cart item using existing method
-          await _firestoreService.updateCartItem(
-            _currentUser!.uid, 
-            product, 
-            1
-          );
-          
-          setState(() {
-            _userCartItems.add(Cart(
-              id: '${_currentUser!.uid}_${product.id}',
-              userId: _currentUser!.uid,
-              productId: product.id,
-              productName: product.name,
-              productPrice: product.price,
-              productImage: product.image,
-              quantity: 1,
-              createdAt: DateTime.now(),
-            ));
-          });
+          await _firestoreService.updateCartItem(_currentUser!.uid, product, 1);
         }
-        
+
         _showSuccessSnackBar(product, false);
       } catch (e) {
         _showErrorSnackBar('Gagal menambahkan ke keranjang: $e');
@@ -172,11 +170,11 @@ class _HomeScreenState extends State<HomeScreen> {
       int existingIndex = _guestCartItems.indexWhere(
         (item) => item.productId == product.id,
       );
-      
+
       if (existingIndex != -1) {
         final existingCart = _guestCartItems[existingIndex];
         final newQuantity = existingCart.quantity + 1;
-        
+
         if (newQuantity > product.stock) {
           _showErrorSnackBar('Stok ${product.name} tidak mencukupi');
           return;
@@ -187,16 +185,18 @@ class _HomeScreenState extends State<HomeScreen> {
           updatedAt: DateTime.now(),
         );
       } else {
-        _guestCartItems.add(Cart(
-          id: DateTime.now().millisecondsSinceEpoch.toString(),
-          userId: 'guest',
-          productId: product.id,
-          productName: product.name,
-          productPrice: product.price,
-          productImage: product.image,
-          quantity: 1,
-          createdAt: DateTime.now(),
-        ));
+        _guestCartItems.add(
+          Cart(
+            id: DateTime.now().millisecondsSinceEpoch.toString(),
+            userId: 'guest',
+            productId: product.id,
+            productName: product.name,
+            productPrice: product.price,
+            productImage: product.image,
+            quantity: 1,
+            createdAt: DateTime.now(),
+          ),
+        );
       }
     });
   }
@@ -214,7 +214,11 @@ class _HomeScreenState extends State<HomeScreen> {
             if (!widget.isGuest) {
               setState(() => _selectedIndex = 1);
             } else {
-              GuestDialogs.showCartDialog(context, _getCartMap(), _redirectToLogin);
+              GuestDialogs.showCartDialog(
+                context,
+                _getCartMap(),
+                _redirectToLogin,
+              );
             }
           },
         ),
@@ -249,11 +253,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _updateUserCart(List<Cart> updatedCartItems) async {
     try {
-      // Update local state first for immediate UI response
-      setState(() {
-        _userCartItems = List<Cart>.from(updatedCartItems);
-      });
-
       // Convert List<Cart> to Map<String, int> for existing FirestoreService method
       final cartMap = <String, int>{};
       for (var item in updatedCartItems) {
@@ -267,21 +266,16 @@ class _HomeScreenState extends State<HomeScreen> {
         _productCache,
       );
     } catch (e) {
-      // Revert local state on error
-      await _loadUserCart();
+      // [PERBAIKAN] Tidak perlu reload cart karena sudah menggunakan stream
       _showErrorSnackBar('Gagal memperbarui keranjang: $e');
     }
   }
 
   Map<String, int> _getCartMap() {
     if (widget.isGuest) {
-      return {
-        for (var item in _guestCartItems) item.productId: item.quantity
-      };
+      return {for (var item in _guestCartItems) item.productId: item.quantity};
     } else {
-      return {
-        for (var item in _userCartItems) item.productId: item.quantity
-      };
+      return {for (var item in _userCartItems) item.productId: item.quantity};
     }
   }
 
@@ -302,13 +296,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _syncGuestCartOnLogin() async {
     if (_guestCartItems.isEmpty) return;
-    
+
     _currentUser = FirebaseAuth.instance.currentUser;
     if (_currentUser != null) {
       try {
         // Convert guest cart to map format for existing method
         final cartMapToSync = <String, int>{};
-        
+
         for (var guestItem in _guestCartItems) {
           final existingIndex = _userCartItems.indexWhere(
             (item) => item.productId == guestItem.productId,
@@ -319,35 +313,26 @@ class _HomeScreenState extends State<HomeScreen> {
             final existingCart = _userCartItems[existingIndex];
             final newQuantity = existingCart.quantity + guestItem.quantity;
             final maxStock = _productStock[guestItem.productId] ?? 999;
-            
-            cartMapToSync[guestItem.productId] = newQuantity > maxStock ? maxStock : newQuantity;
-            
-            // Update local cart
-            _userCartItems[existingIndex] = existingCart.copyWith(
-              quantity: cartMapToSync[guestItem.productId]!,
-              updatedAt: DateTime.now(),
-            );
+
+            cartMapToSync[guestItem.productId] =
+                newQuantity > maxStock ? maxStock : newQuantity;
           } else {
             // Add new cart item
             cartMapToSync[guestItem.productId] = guestItem.quantity;
-            _userCartItems.add(guestItem.copyWith(
-              userId: _currentUser!.uid,
-              createdAt: DateTime.now(),
-            ));
           }
         }
-        
+
         // Use existing batch update method
         await _firestoreService.updateUserCartBatch(
           _currentUser!.uid,
           cartMapToSync,
           _productCache,
         );
-        
+
         setState(() {
           _guestCartItems.clear();
         });
-        
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -368,9 +353,10 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: _isLoadingCart
-            ? const Center(child: CircularProgressIndicator())
-            : IndexedStack(index: _selectedIndex, children: _pages),
+        child:
+            _isLoadingCart
+                ? const Center(child: CircularProgressIndicator())
+                : IndexedStack(index: _selectedIndex, children: _pages),
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
